@@ -7,14 +7,9 @@ export default async function handler(req, res) {
 
   var PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || '';
   var DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
-  var ACCESS_CODE = process.env.ACCESS_CODE || '';
 
   var body = req.body || {};
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch(e) {} }
-
-  if (ACCESS_CODE && body.access_code !== ACCESS_CODE) {
-    res.status(401).json({error: 'Invalid access code'}); return;
-  }
 
   var model = body.model || 'deepseek-flash';
   var messages = body.messages || [];
