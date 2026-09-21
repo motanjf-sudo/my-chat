@@ -1,4 +1,4 @@
-export const config = { runtime: 'edge' };
+export const config = { runtime: 'edge', maxDuration: 60 };
 
 var CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -26,7 +26,7 @@ export default async function handler(req) {
     var dsRes = await fetch('https://api.deepseek.com/chat/completions', {
       method:'POST',
       headers:{'Authorization':'Bearer '+DEEPSEEK_API_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({model:model, messages:msgs, stream:true, max_tokens:4096})
+      body:JSON.stringify({model:model, messages:msgs, stream:true, max_tokens:16384})
     });
     if (!dsRes.ok) {
       return new Response('data: '+JSON.stringify({error:'DeepSeek '+dsRes.status})+'\n\n', {headers:h});
