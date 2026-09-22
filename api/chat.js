@@ -79,8 +79,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  // DeepSeek
-  var sys = {role:'system', content:'شما یک دستیار هوشمند و دقیق هستید. به زبان فارسی پاسخ دهید مگر اینکه کاربر زبان دیگری مشخص کرده باشد.'};
+  // DeepSeek با thinking
+  var sys = {role:'system', content:'شما یک دستیار هوشمند و دقیق هستید. همیشه به زبان فارسی توضیح بده ولی کدها رو به انگلیسی بنویس.'};
   var msgs = [sys].concat(messages);
   var dsRes = await fetch('https://api.deepseek.com/chat/completions', {
     method:'POST',
@@ -106,10 +106,8 @@ export default async function handler(req, res) {
       try {
         var dsObj = JSON.parse(dsD);
         var deltaObj = dsObj.choices&&dsObj.choices[0]&&dsObj.choices[0].delta;
-        var thinking = deltaObj&&deltaObj.reasoning_content;
-        var delta = deltaObj&&deltaObj.content;
-        if (thinking) send({thinking:thinking});
-        if (delta) send({delta:delta});
+        if (deltaObj&&deltaObj.reasoning_content) send({thinking:deltaObj.reasoning_content});
+        if (deltaObj&&deltaObj.content) send({delta:deltaObj.content});
       } catch(e) {}
     }
   }
