@@ -1,134 +1,118 @@
-export const config = { runtime: 'edge', maxDuration: 300 };
+export const config = { maxDuration: 300 };
 
-var CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type'
-};
-
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') return new Response(null, {headers: CORS});
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
   var PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || '';
   var DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
 
-  var body = await req.json().catch(function(){return {};});
+  var body = req.body || {};
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch(e) {} }
+
   var model = body.model || 'deepseek-flash';
   var messages = body.messages || [];
 
-  var h = {'Content-Type':'text/event-stream;charset=utf-8','Cache-Control':'no-cache'};
-  for(var k in CORS) h[k] = CORS[k];
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  function send(obj) { res.write('data: ' + JSON.stringify(obj) + '\n\n'); }
+
+  if (model.startsWith('pplx:')) {
+    var pplxModel = model.slice(5);
+    var lastMsg = messages[messages.length-1] || {};
+    var input = String(lastMsg.content || '');
+    var inputArr = messages.map(function(m){
+      return {role: m.role==='assistant'?'assistant':'user', content: String(m.content||'')};
+    });
+    var chromeH = {
+      'Authorization': 'Bearer '+PERPLEXITY_API_KEY,
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+      'Origin': 'https://www.perplexity.ai',
+      'Referer': 'https://www.perplexity.ai/',
+      'sec-ch-ua': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+      'sec-fetch-dest': 'empty',
+      'sec-fetch-mode': 'cors',
+      'sec-fetch-site': 'same-origin'
+    };
+    var pRes = await fetch('https://api.perplexity.ai/v1/agent', {
+      method:'POST', headers:chromeH,
+      body:JSON.stringify({model:pplxModel, input:inputArr, stream:true})
+    });
+    if (!pRes.ok && pRes.status===400) {
+      pRes = await fetch('https://api.perplexity.ai/v1/agent', {
+        method:'POST', headers:chromeH,
+        body:JSON.stringify({model:pplxModel, input:input, stream:true})
+      });
+    }
+    if (!pRes.ok) { send({error:'Perplexity '+pRes.status}); res.end(); return; }
+
+    var reader = pRes.body.getReader();
+    var dec = new TextDecoder();
+    var buf = '';
+    while(true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buf += dec.decode(chunk.value, {stream:true});
+      var lines = buf.split('\n');
+      buf = lines.pop() || '';
+      for (var i=0;i<lines.length;i++) {
+        var line = lines[i];
+        if (line.indexOf('data: ')!==0) continue;
+        var d = line.slice(6).trim();
+        if (!d||d==='[DONE]') continue;
+        try {
+          var obj = JSON.parse(d);
+          if (obj.type==='response.output_text.delta'&&obj.delta) send({delta:obj.delta});
+        } catch(e) {}
+      }
+    }
+    send({done:true});
+    res.end();
+    return;
+  }
 
   // DeepSeek
-  if (!model.startsWith('pplx:')) {
-    var sys = {role:'system', content:'شما یک دستیار هوشمند و دقیق هستید. به زبان فارسی پاسخ دهید مگر اینکه کاربر زبان دیگری مشخص کرده باشد.'};
-    var msgs = [sys].concat(messages);
-    var dsRes = await fetch('https://api.deepseek.com/chat/completions', {
-      method:'POST',
-      headers:{'Authorization':'Bearer '+DEEPSEEK_API_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({model:model, messages:msgs, stream:true, max_tokens:16384})
-    });
-    if (!dsRes.ok) {
-      return new Response('data: '+JSON.stringify({error:'DeepSeek '+dsRes.status})+'\n\n', {headers:h});
+  var sys = {role:'system', content:'شما یک دستیار هوشمند و دقیق هستید. به زبان فارسی پاسخ دهید مگر اینکه کاربر زبان دیگری مشخص کرده باشد.'};
+  var msgs = [sys].concat(messages);
+  var dsRes = await fetch('https://api.deepseek.com/chat/completions', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+DEEPSEEK_API_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({model:model, messages:msgs, stream:true, max_tokens:16384})
+  });
+  if (!dsRes.ok) { send({error:'DeepSeek '+dsRes.status}); res.end(); return; }
+
+  var dsReader = dsRes.body.getReader();
+  var dsDec = new TextDecoder();
+  var dsBuf = '';
+  while(true) {
+    var dsChunk = await dsReader.read();
+    if (dsChunk.done) break;
+    dsBuf += dsDec.decode(dsChunk.value, {stream:true});
+    var dsLines = dsBuf.split('\n');
+    dsBuf = dsLines.pop() || '';
+    for (var j=0;j<dsLines.length;j++) {
+      var dsLine = dsLines[j];
+      if (dsLine.indexOf('data: ')!==0) continue;
+      var dsD = dsLine.slice(6).trim();
+      if (!dsD||dsD==='[DONE]') continue;
+      try {
+        var dsObj = JSON.parse(dsD);
+        var deltaObj = dsObj.choices&&dsObj.choices[0]&&dsObj.choices[0].delta;
+        var thinking = deltaObj&&deltaObj.reasoning_content;
+        var delta = deltaObj&&deltaObj.content;
+        if (thinking) send({thinking:thinking});
+        if (delta) send({delta:delta});
+      } catch(e) {}
     }
-    var reader = dsRes.body.getReader();
-    var stream = new ReadableStream({
-      start: async function(ctrl) {
-        var dec = new TextDecoder();
-        var enc = new TextEncoder();
-        var buf = '';
-        while(true) {
-          var chunk = await reader.read();
-          if (chunk.done) break;
-          buf += dec.decode(chunk.value, {stream:true});
-          var lines = buf.split('\n');
-          buf = lines.pop() || '';
-          for (var i=0;i<lines.length;i++) {
-            var line = lines[i];
-            if (line.indexOf('data: ') !== 0) continue;
-            var d = line.slice(6).trim();
-            if (!d || d === '[DONE]') continue;
-            try {
-              var obj = JSON.parse(d);
-              var deltaObj = obj.choices && obj.choices[0] && obj.choices[0].delta;
-              var thinking = deltaObj && deltaObj.reasoning_content;
-              var delta = deltaObj && deltaObj.content;
-              if (thinking) ctrl.enqueue(enc.encode('data: '+JSON.stringify({thinking:thinking})+'\n\n'));
-              if (delta) ctrl.enqueue(enc.encode('data: '+JSON.stringify({delta:delta})+'\n\n'));
-            } catch(e) {}
-          }
-        }
-        ctrl.enqueue(new TextEncoder().encode('data: '+JSON.stringify({done:true})+'\n\n'));
-        ctrl.close();
-      }
-    });
-    return new Response(stream, {headers:h});
   }
-
-  // Perplexity
-  var pplxModel = model.slice(5);
-  var lastMsg = messages[messages.length-1] || {};
-  var input = String(lastMsg.content || '');
-  var inputArr = messages.map(function(m){
-    return {role: m.role==='assistant'?'assistant':'user', content: String(m.content||'')};
-  });
-  var chromeH = {
-    'Authorization': 'Bearer '+PERPLEXITY_API_KEY,
-    'Content-Type': 'application/json',
-    'Accept': 'text/event-stream',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
-    'Origin': 'https://www.perplexity.ai',
-    'Referer': 'https://www.perplexity.ai/',
-    'sec-ch-ua': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'same-origin'
-  };
-
-  var pRes = await fetch('https://api.perplexity.ai/v1/agent', {
-    method:'POST', headers:chromeH,
-    body:JSON.stringify({model:pplxModel, input:inputArr, stream:true})
-  });
-  if (!pRes.ok && pRes.status === 400) {
-    pRes = await fetch('https://api.perplexity.ai/v1/agent', {
-      method:'POST', headers:chromeH,
-      body:JSON.stringify({model:pplxModel, input:input, stream:true})
-    });
-  }
-  if (!pRes.ok) {
-    return new Response('data: '+JSON.stringify({error:'Perplexity '+pRes.status})+'\n\n', {headers:h});
-  }
-
-  var pReader = pRes.body.getReader();
-  var pStream = new ReadableStream({
-    start: async function(ctrl) {
-      var dec = new TextDecoder();
-      var enc = new TextEncoder();
-      var buf = '';
-      while(true) {
-        var chunk = await pReader.read();
-        if (chunk.done) break;
-        buf += dec.decode(chunk.value, {stream:true});
-        var lines = buf.split('\n');
-        buf = lines.pop() || '';
-        for (var i=0;i<lines.length;i++) {
-          var line = lines[i];
-          if (line.indexOf('data: ') !== 0) continue;
-          var d = line.slice(6).trim();
-          if (!d || d === '[DONE]') continue;
-          try {
-            var obj = JSON.parse(d);
-            if (obj.type === 'response.output_text.delta' && obj.delta) {
-              ctrl.enqueue(enc.encode('data: '+JSON.stringify({delta:obj.delta})+'\n\n'));
-            }
-          } catch(e) {}
-        }
-      }
-      ctrl.enqueue(new TextEncoder().encode('data: '+JSON.stringify({done:true})+'\n\n'));
-      ctrl.close();
-    }
-  });
-  return new Response(pStream, {headers:h});
+  send({done:true});
+  res.end();
 }
