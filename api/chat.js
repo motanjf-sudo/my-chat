@@ -1,4 +1,4 @@
-export const config = { runtime: 'edge', maxDuration: 60 };
+export const config = { runtime: 'edge', maxDuration: 300 };
 
 var CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -50,7 +50,10 @@ export default async function handler(req) {
             if (!d || d === '[DONE]') continue;
             try {
               var obj = JSON.parse(d);
-              var delta = obj.choices && obj.choices[0] && obj.choices[0].delta && obj.choices[0].delta.content;
+              var deltaObj = obj.choices && obj.choices[0] && obj.choices[0].delta;
+              var thinking = deltaObj && deltaObj.reasoning_content;
+              var delta = deltaObj && deltaObj.content;
+              if (thinking) ctrl.enqueue(enc.encode('data: '+JSON.stringify({thinking:thinking})+'\n\n'));
               if (delta) ctrl.enqueue(enc.encode('data: '+JSON.stringify({delta:delta})+'\n\n'));
             } catch(e) {}
           }
