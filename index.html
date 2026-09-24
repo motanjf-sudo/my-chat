@@ -263,7 +263,8 @@ header h1 {
 /* code blocks */
 .bubble pre {
   position: relative;
-  background: #0f1923;
+  background: var(--white);
+  border: 1px solid var(--green-border);
   border-radius: 8px;
   margin: 0.6em 0;
   overflow: hidden;
@@ -274,19 +275,20 @@ header h1 {
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  background: #1a2533;
+  background: var(--green-pale);
+  border-bottom: 1px solid var(--green-border);
   font-size: 0.72rem;
-  color: #64748b;
+  color: var(--gray-600);
 }
 
-.code-lang { font-weight: 500; color: var(--green-mid); }
+.code-lang { font-weight: 500; color: var(--green-main); }
 
 .code-btns { display: flex; gap: 6px; }
 
 .code-btn {
-  background: rgba(255,255,255,0.07);
-  border: none;
-  color: #94a3b8;
+  background: var(--white);
+  border: 1px solid var(--green-border);
+  color: var(--green-main);
   padding: 3px 9px;
   border-radius: 5px;
   font-size: 0.7rem;
@@ -295,13 +297,13 @@ header h1 {
   transition: background 0.15s, color 0.15s;
 }
 
-.code-btn:hover { background: rgba(255,255,255,0.15); color: var(--white); }
+.code-btn:hover { background: var(--green-light); color: var(--green-dark); }
 .code-btn:disabled { opacity: 0.4; cursor: default; }
 
 .bubble pre code {
   display: block;
   padding: 14px;
-  color: #e2e8f0;
+  color: var(--gray-800);
   font-size: 0.82rem;
   line-height: 1.6;
   overflow-x: auto;
@@ -682,12 +684,7 @@ function enhanceCodeBlocks(bub) {
     copyBtn.className = 'code-btn';
     copyBtn.textContent = '📋 کپی';
 
-    const dlBtn = document.createElement('button');
-    dlBtn.className = 'code-btn';
-    dlBtn.textContent = '⬇️ دانلود';
-
     btns.appendChild(copyBtn);
-    btns.appendChild(dlBtn);
     toolbar.appendChild(langSpan);
     toolbar.appendChild(btns);
 
@@ -700,15 +697,6 @@ function enhanceCodeBlocks(bub) {
       });
     });
 
-    dlBtn.addEventListener('click', () => {
-      const ext = lang || 'txt';
-      const blob = new Blob([code.innerText], {type: 'text/plain'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `code.${ext}`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    });
   });
 }
 
