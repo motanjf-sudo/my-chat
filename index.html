@@ -613,13 +613,19 @@ function hideTyping() {
 
 // ===== RENDER MARKDOWN =====
 function renderMd(text) {
-  // preserve math before markdown parsing
-  const mathBlocks = [];
-  let html = text
-    .replace(/\$\$[\s\S]+?\$\$/g, m => { mathBlocks.push(m); return `%%MATH${mathBlocks.length-1}%%`; })
-    .replace(/\$[^\n$]+?\$/g, m => { mathBlocks.push(m); return `%%MATH${mathBlocks.length-1}%%`; });
+  // normalize math delimiters before parsing
+  // convert \[ ... \] to $$ ... $$
+  let t = text
+    .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, m) => `$$${m}$$`)
+    .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_, m) => `$${m}$`);
 
-  html = marked.parse(html);
+  // preserve all math blocks from markdown mangling
+  const mathBlocks = [];
+  t = t
+    .replace(/\$\$[\s\S]+?\$\$/g, m => { mathBlocks.push(m); return `%%MATH${mathBlocks.length-1}%%`; })
+    .replace(/\$[^\n$]+?\$/g,     m => { mathBlocks.push(m); return `%%MATH${mathBlocks.length-1}%%`; });
+
+  let html = marked.parse(t);
 
   // restore math
   mathBlocks.forEach((m, i) => {
