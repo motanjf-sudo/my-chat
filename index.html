@@ -473,9 +473,12 @@ footer {
       <option value="pplx:perplexity/nemotron-3-ultra-550b-a55b">NVIDIA Nemotron 550B</option>
     </optgroup>
     <optgroup label="Perplexity — Presets">
-      <option value="pplx:__preset__fast">Preset: Fast</option>
-      <option value="pplx:__preset__pro-search">Preset: Pro Search</option>
-      <option value="pplx:__preset__deep-research">Preset: Deep Research</option>
+      <option value="pplx:__preset__fast">Preset: Fast (جستجوی سریع)</option>
+      <option value="pplx:__preset__low">Preset: Low (تحقیق سبک)</option>
+      <option value="pplx:__preset__medium">Preset: Medium (تحقیق متوسط)</option>
+      <option value="pplx:__preset__high">Preset: High (تحقیق عمیق)</option>
+      <option value="pplx:__preset__xhigh">Preset: XHigh (عامل‌پذیر طولانی)</option>
+      <option value="pplx:__preset__wide-research">Preset: Wide Research (مجموعه‌سازی گسترده)</option>
     </optgroup>
   </select>
   <button id="clearBtn">🗑️ پاک</button>
@@ -486,6 +489,11 @@ footer {
     <input type="checkbox" id="thTog">
     <span class="tog-slider"></span>
     تفکر 🧠
+  </label>
+  <label class="tog-wrap" id="srWrap" style="display:none">
+    <input type="checkbox" id="srTog">
+    <span class="tog-slider"></span>
+    سرچ 🔍
   </label>
 </div>
 
@@ -516,6 +524,17 @@ const sendBtn = document.getElementById('sendBtn');
 
 let history = [];
 let isStreaming = false;
+
+const srWrap = document.getElementById('srWrap');
+const srTog  = document.getElementById('srTog');
+
+function updateToolbar() {
+  const isPplx = mSel.value.startsWith('pplx:');
+  srWrap.style.display = isPplx ? '' : 'none';
+  if (!isPplx) srTog.checked = false;
+}
+mSel.addEventListener('change', updateToolbar);
+updateToolbar();
 
 // ===== MARKED CONFIG =====
 marked.setOptions({
@@ -712,6 +731,7 @@ async function sendMsg() {
 
   const model    = mSel.value;
   const thinking = thTog.checked;
+  const search   = srTog.checked;
 
   // ===== STREAMING =====
   let rawThink = '';
@@ -750,7 +770,7 @@ async function sendMsg() {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages: history, thinking })
+      body: JSON.stringify({ model, messages: history, thinking, search })
     });
 
     hideTyping();
