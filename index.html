@@ -254,7 +254,7 @@ header h1 {
 .bubble li { margin: 0.2em 0; }
 .bubble a { color: var(--green-main); }
 .bubble blockquote { border-right: 3px solid var(--gray-200); padding-right: 10px; color: var(--gray-600); margin: 0.5em 0; }
-.bubble strong { color: var(--gray-800); }
+.bubble strong { color: inherit; font-weight: 700; }
 .bubble table { border-collapse: collapse; width: 100%; margin: 0.5em 0; font-size: 0.85em; }
 .bubble th,.bubble td { border: 1px solid var(--gray-200); padding: 6px 10px; text-align: right; }
 .bubble th { background: var(--gray-50); color: var(--gray-800); font-weight: 600; }
@@ -613,23 +613,24 @@ function hideTyping() {
 
 // ===== RENDER MARKDOWN =====
 function renderMd(text) {
-  // normalize math delimiters before parsing
-  // convert \[ ... \] to $$ ... $$
+  // 1. normalize \[...\] → $$...$$ and \(...\) → $...$
   let t = text
-    .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, m) => `$$${m}$$`)
-    .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_, m) => `$${m}$`);
+    .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, m) => `\n$$\n${m}\n$$\n`)
+    .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g,  (_, m) => `$${m}$`);
 
-  // preserve all math blocks from markdown mangling
+  // 2. preserve math blocks before marked.js can mangle underscores/asterisks inside them
   const mathBlocks = [];
+  const saveMath = m => { mathBlocks.push(m); return `\x02MATH${mathBlocks.length-1}\x03`; };
   t = t
-    .replace(/\$\$[\s\S]+?\$\$/g, m => { mathBlocks.push(m); return `%%MATH${mathBlocks.length-1}%%`; })
-    .replace(/\$[^\n$]+?\$/g,     m => { mathBlocks.push(m); return `%%MATH${mathBlocks.length-1}%%`; });
+    .replace(/\$\$[\s\S]+?\$\$/g, saveMath)
+    .replace(/\$[^\n$]+?\$/g,     saveMath);
 
+  // 3. markdown → html
   let html = marked.parse(t);
 
-  // restore math
+  // 4. restore math (HTML-decoded, since marked may encode \)
   mathBlocks.forEach((m, i) => {
-    html = html.replace(`%%MATH${i}%%`, m);
+    html = html.replace(`\x02MATH${i}\x03`, m);
   });
 
   return html;
