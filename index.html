@@ -219,52 +219,31 @@ header h1 {
   box-shadow: var(--shadow-sm);
 }
 
-/* thinking box */
-.think-box {
-  background: var(--gray-50);
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius-sm);
-  margin-bottom: 10px;
-  overflow: hidden;
-}
-
-.think-head {
+/* thinking dots */
+.think-dots {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  color: var(--green-main);
-  font-weight: 600;
-  user-select: none;
+  gap: 5px;
+  padding: 4px 2px 10px;
 }
 
-.think-head:hover { background: var(--gray-100); }
-
-.think-head .arrow {
-  display: inline-block;
-  transition: transform 0.2s;
-  font-size: 0.7rem;
+.think-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green-main);
+  animation: thinkPulse 1.4s ease-in-out infinite;
+  opacity: 0.3;
 }
 
-.think-box.open .think-head .arrow { transform: rotate(90deg); }
+.think-dots span:nth-child(1) { animation-delay: 0s; }
+.think-dots span:nth-child(2) { animation-delay: 0.22s; }
+.think-dots span:nth-child(3) { animation-delay: 0.44s; }
 
-.think-body {
-  display: none;
-  padding: 10px 14px;
-  font-size: 0.8rem;
-  line-height: 1.6;
-  color: var(--gray-600);
-  border-top: 1px solid var(--gray-200);
-  white-space: pre-wrap;
-  direction: ltr;
-  text-align: left;
-  max-height: 300px;
-  overflow-y: auto;
+@keyframes thinkPulse {
+  0%, 100% { transform: scale(0.7); opacity: 0.25; }
+  50%       { transform: scale(1.3); opacity: 1; }
 }
-
-.think-box.open .think-body { display: block; }
 
 /* markdown inside bubble */
 .bubble p { margin: 0.4em 0; }
@@ -599,22 +578,12 @@ function addBot() {
   const msg = document.createElement('div');
   msg.className = 'msg bot';
 
-  // thinking box (hidden initially)
-  const thinkBox = document.createElement('div');
-  thinkBox.className = 'think-box';
-  thinkBox.style.display = 'none';
-
-  const thinkHead = document.createElement('div');
-  thinkHead.className = 'think-head';
-  thinkHead.innerHTML = '<span class="arrow">▶</span> در حال فکر کردن...';
-  thinkHead.addEventListener('click', () => thinkBox.classList.toggle('open'));
-
-  const thinkBody = document.createElement('div');
-  thinkBody.className = 'think-body';
-
-  thinkBox.appendChild(thinkHead);
-  thinkBox.appendChild(thinkBody);
-  msg.appendChild(thinkBox);
+  // thinking dots
+  const thinkDots = document.createElement('div');
+  thinkDots.className = 'think-dots';
+  thinkDots.style.display = 'none';
+  thinkDots.innerHTML = '<span></span><span></span><span></span>';
+  msg.appendChild(thinkDots);
 
   // main bubble
   const bub = document.createElement('div');
@@ -624,7 +593,7 @@ function addBot() {
   chat.appendChild(msg);
   scrollBottom();
 
-  return { msg, bub, thinkBox, thinkHead, thinkBody };
+  return { msg, bub, thinkDots };
 }
 
 // ===== TYPING INDICATOR =====
@@ -752,16 +721,14 @@ async function sendMsg() {
     if (pendingThink) {
       rawThink += pendingThink;
       pendingThink = '';
-      botEl.thinkBody.textContent = rawThink;
-      botEl.thinkBox.style.display = '';
-      if (!botEl.thinkBox.classList.contains('open')) {
-        botEl.thinkBox.classList.add('open');
-      }
+      // show dots while thinking, hide once content starts
+      if (!rawContent) botEl.thinkDots.style.display = 'flex';
     }
 
     if (pendingContent) {
       rawContent += pendingContent;
       pendingContent = '';
+      botEl.thinkDots.style.display = 'none'; // hide dots when text arrives
       botEl.bub.innerHTML = renderMd(rawContent);
     }
 
@@ -790,6 +757,10 @@ async function sendMsg() {
     }
 
     botEl = addBot();
+    // show thinking dots immediately if thinking is on or model is reasoner
+    if (thinking || model === 'deepseek-reasoner') {
+      botEl.thinkDots.style.display = 'flex';
+    }
 
     const reader = res.body.getReader();
     const dec = new TextDecoder();
@@ -831,11 +802,8 @@ async function sendMsg() {
             MathJax.typesetPromise([botEl.bub]).catch(() => {});
           }
 
-          // update thinking header
-          if (rawThink) {
-            botEl.thinkHead.innerHTML = '<span class="arrow">▶</span> تفکر (کلیک برای مشاهده)';
-            botEl.thinkBox.classList.remove('open');
-          }
+          // hide dots on done
+          botEl.thinkDots.style.display = 'none';
 
           // save to history
           history.push({ role: 'assistant', content: rawContent });
