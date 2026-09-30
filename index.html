@@ -76,7 +76,7 @@ header h1 {
   flex: 1;
 }
 
-.mLb {
+#mLb {
   color: var(--green-main);
   font-size: 0.75rem;
   font-weight: 600;
@@ -87,7 +87,7 @@ header h1 {
   border: 1px solid var(--green-border);
 }
 
-.mSel {
+#mSel {
   background: var(--white);
   border: 1px solid var(--gray-200);
   color: var(--gray-800);
@@ -100,9 +100,9 @@ header h1 {
   max-width: 160px;
 }
 
-.mSel:focus { border-color: var(--green-main); box-shadow: 0 0 0 2px rgba(22,163,74,0.15); }
+#mSel:focus { border-color: var(--green-main); box-shadow: 0 0 0 2px rgba(22,163,74,0.15); }
 
-.clearBtn {
+#clearBtn {
   background: var(--white);
   border: 1px solid var(--gray-200);
   color: var(--gray-600);
@@ -114,10 +114,10 @@ header h1 {
   transition: all 0.15s;
 }
 
-.clearBtn:hover { border-color: #fca5a5; color: #dc2626; background: #fff5f5; }
+#clearBtn:hover { border-color: #fca5a5; color: #dc2626; background: #fff5f5; }
 
 /* ===== TOOLBAR ===== */
-.tbar {
+#tbar {
   background: var(--gray-50);
   border-bottom: 1px solid var(--gray-200);
   padding: 8px 20px;
@@ -165,7 +165,7 @@ header h1 {
 .tog-wrap input:checked + .tog-slider::after { transform: translateX(-18px); }
 
 /* ===== CHAT AREA ===== */
-.chat {
+#chat {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
@@ -176,9 +176,9 @@ header h1 {
   background: #f8fafc;
 }
 
-.chat::-webkit-scrollbar { width: 5px; }
-.chat::-webkit-scrollbar-track { background: transparent; }
-.chat::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 3px; }
+#chat::-webkit-scrollbar { width: 5px; }
+#chat::-webkit-scrollbar-track { background: transparent; }
+#chat::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 3px; }
 
 /* ===== MESSAGES ===== */
 .msg {
@@ -366,7 +366,7 @@ footer {
   align-items: flex-end;
 }
 
-.inp {
+#inp {
   flex: 1;
   border: 1.5px solid var(--gray-200);
   border-radius: 14px;
@@ -384,15 +384,15 @@ footer {
   line-height: 1.5;
 }
 
-.inp:focus {
+#inp:focus {
   border-color: var(--green-main);
   box-shadow: 0 0 0 3px rgba(22,163,74,0.12);
   background: var(--white);
 }
 
-.inp::placeholder { color: var(--gray-400); }
+#inp::placeholder { color: var(--gray-400); }
 
-.sendBtn {
+#sendBtn {
   width: 44px;
   height: 44px;
   background: var(--green-main);
@@ -408,9 +408,9 @@ footer {
   font-size: 1.1rem;
 }
 
-.sendBtn:hover { background: var(--green-dark); }
-.sendBtn:active { transform: scale(0.95); }
-.sendBtn:disabled { background: var(--gray-200); cursor: default; }
+#sendBtn:hover { background: var(--green-dark); }
+#sendBtn:active { transform: scale(0.95); }
+#sendBtn:disabled { background: var(--gray-200); cursor: default; }
 
 .hint {
   text-align: center;
@@ -420,7 +420,7 @@ footer {
 }
 
 /* ===== ATTACHMENTS ===== */
-.attachBtn {
+#attachBtn {
   width: 44px;
   height: 44px;
   background: var(--white);
@@ -435,16 +435,16 @@ footer {
   transition: all 0.15s;
   font-size: 1.1rem;
 }
-.attachBtn:hover { border-color: var(--green-main); color: var(--green-main); }
-.attachBtn:disabled { opacity: 0.4; cursor: default; }
+#attachBtn:hover { border-color: var(--green-main); color: var(--green-main); }
+#attachBtn:disabled { opacity: 0.4; cursor: default; }
 
-.attachRow {
+#attachRow {
   display: none;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 10px;
 }
-.attachRow.show { display: flex; }
+#attachRow.show { display: flex; }
 
 .attach-chip {
   display: flex;
@@ -553,108 +553,47 @@ footer {
 .edit-box .save-btn { background: var(--green-main); color: #fff; }
 .edit-box .cancel-btn { background: var(--gray-100); color: var(--gray-600); }
 
-.sendBtn.stop-mode { background: #dc2626; }
-.sendBtn.stop-mode:hover { background: #b91c1c; }
+#sendBtn.stop-mode { background: #dc2626; }
+#sendBtn.stop-mode:hover { background: #b91c1c; }
 
-/* ===== MULTI-PANE ===== */
-#panes {
-  flex: 1;
-  display: flex;
-  min-height: 0;
-  min-width: 0;
+/* ===== GENERATION MODES (image / audio) ===== */
+#tbar { flex-wrap: wrap; }
+.modes { display: flex; gap: 4px; background: var(--gray-100); padding: 3px; border-radius: 10px; }
+.modes button {
+  border: 0; background: transparent; color: var(--gray-600);
+  font-family: 'Vazirmatn', sans-serif; font-size: 0.82rem;
+  padding: 5px 12px; border-radius: 8px; cursor: pointer; transition: all 0.15s;
 }
-
-.pane {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: #f8fafc;
-  overflow: hidden;
-  container-type: inline-size;
-  transition: flex-grow 0.35s ease, opacity 0.35s ease;
+.modes button.on { background: var(--white); color: var(--green-main); box-shadow: var(--shadow-sm); font-weight: 600; }
+#genBar { display: none; align-items: center; gap: 8px; flex-wrap: wrap; }
+body.mode-image #genBar, body.mode-audio #genBar { display: flex; }
+body.mode-image .chat-only, body.mode-audio .chat-only { display: none !important; }
+body.mode-image #mSel, body.mode-audio #mSel, body.mode-image #mLb, body.mode-audio #mLb { display: none; }
+.audio-only { display: none; }
+body.mode-audio .audio-only { display: inline-block; }
+#genBar select, #genBar input {
+  font-family: 'Vazirmatn', sans-serif; font-size: 0.8rem; color: var(--gray-800);
+  background: var(--white); border: 1.5px solid var(--gray-200); border-radius: 8px;
+  padding: 5px 8px; outline: none; max-width: 200px;
 }
-
-.pane + .pane { border-inline-start: 1px solid var(--gray-200); }
-
-/* a new chat starts (almost) closed and grows; the old one shrinks until both are equal */
-.pane.entering,
-.pane.leaving { flex-grow: 0.0001; opacity: 0; }
-.pane.leaving { pointer-events: none; }
-
-header h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mSel { min-width: 0; }
-.tbar { min-height: 46px; }
-
-.pane:not(.is-first) header { padding: 10px 14px; }
-.pane:not(.is-first) header img,
-.pane:not(.is-first) .mLb { display: none; }
-
-@container (max-width: 520px) {
-  .mLb { display: none; }
-  header { padding: 10px 12px; gap: 8px; }
-  header h1 { font-size: 0.9rem; }
-  .mSel { max-width: 132px; text-overflow: ellipsis; }
-  .clearLbl { display: none; }
-  .clearBtn { padding: 6px 8px; }
-  .tbar, footer { padding-left: 12px; padding-right: 12px; }
-  .hint { display: none; }
-  .msg { max-width: 92%; }
+#genBar select:focus, #genBar input:focus { border-color: var(--green-main); }
+#styleInp { min-width: 150px; }
+.gen-img { display: block; max-width: 100%; max-height: 420px; border-radius: 10px; }
+.gen-audio { width: 100%; min-width: 240px; margin-top: 2px; }
+.gen-dl {
+  display: inline-block; margin-top: 8px; font-size: 0.78rem; color: var(--green-main);
+  text-decoration: none; border: 1px solid var(--green-border); border-radius: 8px; padding: 3px 10px;
 }
-
-.addBtn {
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  border: 1.5px solid var(--green-border);
-  background: var(--green-pale);
-  color: var(--green-main);
-  border-radius: 9px;
-  font-family: inherit;
-  font-size: 1.3rem;
-  line-height: 1;
-  padding: 0 0 2px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-}
-.addBtn:hover { background: var(--green-main); border-color: var(--green-main); color: var(--white); }
-.addBtn:disabled { background: var(--gray-100); border-color: var(--gray-200); color: var(--gray-400); cursor: default; }
-
-.closeBtn {
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  background: var(--white);
-  border: 1px solid var(--gray-200);
-  color: var(--gray-600);
-  border-radius: 8px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.closeBtn:hover { border-color: #fca5a5; color: #dc2626; background: #fff5f5; }
-
-@media (max-width: 720px) {
-  #panes { flex-direction: column; }
-  .pane + .pane { border-inline-start: 0; border-top: 1px solid var(--gray-200); }
-}
+.gen-dl:hover { background: var(--green-pale); }
 </style>
 </head>
 <body>
 
-<div id="panes"></div>
-
-<template id="paneTpl">
-<div class="pane">
 <header>
   <img src="/logo.png" alt="logo" onerror="this.style.display='none'">
   <h1>دستیار هوشمند</h1>
-  <span class="mLb">DeepSeek Flash</span>
-  <select class="mSel">
+  <span id="mLb">DeepSeek Flash</span>
+  <select id="mSel">
     <optgroup label="DeepSeek">
       <option value="deepseek-flash" selected>DeepSeek Flash</option>
       <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
@@ -714,166 +653,99 @@ header h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space
       <option value="pplx:__preset__wide-research">Preset: Wide Research (مجموعه‌سازی گسترده)</option>
     </optgroup>
   </select>
-  <button class="clearBtn"><span>🗑️</span><span class="clearLbl"> پاک</span></button>
-  <button type="button" class="closeBtn" title="بستن این چت" aria-label="بستن این چت">✕</button>
+  <button id="clearBtn">🗑️ پاک</button>
 </header>
 
-<div class="tbar">
-  <button type="button" class="addBtn" title="افزودن چت جدید" aria-label="افزودن چت جدید">+</button>
-  <label class="tog-wrap">
-    <input type="checkbox" class="thTog">
+<div id="tbar">
+  <div class="modes" id="modes">
+    <button type="button" data-mode="chat" class="on">💬 چت</button>
+    <button type="button" data-mode="image">🖼️ عکس</button>
+    <button type="button" data-mode="audio">🔊 صدا</button>
+  </div>
+  <div id="genBar">
+    <select id="genModel" title="مدل"></select>
+    <select id="voiceSel" class="audio-only" title="صدا"></select>
+    <select id="langSel" class="audio-only" title="زبان">
+      <option value="fa-IR">فارسی (آزمایشی)</option>
+      <option value="en-US">English</option>
+      <option value="ar-XA">العربية</option>
+      <option value="tr-TR">Türkçe</option>
+      <option value="de-DE">Deutsch</option>
+      <option value="fr-FR">Français</option>
+      <option value="es-US">Español</option>
+    </select>
+    <input id="styleInp" class="audio-only" type="text" maxlength="300" placeholder="سبک خوندن (اختیاری) مثلاً: آرام و مهربان">
+  </div>
+  <label class="tog-wrap chat-only">
+    <input type="checkbox" id="thTog">
     <span class="tog-slider"></span>
     تفکر 🧠
   </label>
-  <label class="tog-wrap srWrap" style="display:none">
-    <input type="checkbox" class="srTog">
+  <label class="tog-wrap chat-only" id="srWrap" style="display:none">
+    <input type="checkbox" id="srTog">
     <span class="tog-slider"></span>
     سرچ 🔍
   </label>
 </div>
 
-<div class="chat"></div>
+<div id="chat"></div>
 
 <footer>
-  <div class="attachRow"></div>
+  <div id="attachRow"></div>
   <div class="input-row">
-    <button class="attachBtn" type="button" title="ضمیمه فایل یا عکس">📎</button>
-    <input type="file" class="fileInp" multiple accept="image/*,.txt,.md,.csv,.json,.js,.ts,.py,.html,.css,.log,.xml,.yaml,.yml,.c,.cpp,.java,.sh" style="display:none">
-    <textarea class="inp" rows="1" placeholder="پیامت رو بنویس..."></textarea>
-    <button class="sendBtn">
+    <button id="attachBtn" type="button" title="ضمیمه فایل یا عکس">📎</button>
+    <input type="file" id="fileInp" multiple accept="image/*,.txt,.md,.csv,.json,.js,.ts,.py,.html,.css,.log,.xml,.yaml,.yml,.c,.cpp,.java,.sh" style="display:none">
+    <textarea id="inp" rows="1" placeholder="پیامت رو بنویس..."></textarea>
+    <button id="sendBtn">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="22" y1="2" x2="11" y2="13"></line>
         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
       </svg>
     </button>
   </div>
-  <div class="hint"></div>
+  <div class="hint">Enter برای ارسال · Shift+Enter برای خط جدید · 📎 برای ضمیمه عکس یا فایل</div>
 </footer>
-</div>
-</template>
 
 <script>
-// ===== SHARED =====
+// ===== CONFIG =====
+const mSel = document.getElementById('mSel');
+const mLb  = document.getElementById('mLb');
+const clearBtn = document.getElementById('clearBtn');
+const thTog = document.getElementById('thTog');
+const chat  = document.getElementById('chat');
+const inp   = document.getElementById('inp');
+const sendBtn = document.getElementById('sendBtn');
+const attachBtn = document.getElementById('attachBtn');
+const fileInp = document.getElementById('fileInp');
+const attachRow = document.getElementById('attachRow');
+
+let history = [];
+let isStreaming = false;
+let currentController = null;
+let pendingAttachments = []; // { type:'image'|'file', name, mimeType?, data?(base64), dataUrl?, text? }
+
+const srWrap = document.getElementById('srWrap');
+const srTog  = document.getElementById('srTog');
+
+function updateToolbar() {
+  const isPplx = mSel.value.startsWith('pplx:');
+  srWrap.style.display = isPplx ? '' : 'none';
+  if (!isPplx) srTog.checked = false;
+}
+mSel.addEventListener('change', updateToolbar);
+updateToolbar();
+
+// ===== MARKED CONFIG =====
 marked.setOptions({
   breaks: true,
   gfm: true,
   highlight: null
 });
 
-const SEND_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
-const STOP_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>';
-const MAX_PANES = 4;
-
-const panesEl = document.getElementById('panes');
-const paneTpl = document.getElementById('paneTpl');
-const panes = [];
-
-const faNum = n => Number(n).toLocaleString('fa-IR');
-
-// ===== RENDER MARKDOWN =====
-function renderMd(text) {
-  // 1. normalize \[...\] → $$...$$ and \(...\) → $...$
-  let t = text
-    .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, m) => `\n$$\n${m}\n$$\n`)
-    .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g,  (_, m) => `$${m}$`);
-
-  // 2. preserve math blocks before marked.js can mangle underscores/asterisks inside them
-  const mathBlocks = [];
-  const saveMath = m => { mathBlocks.push(m); return `\x02MATH${mathBlocks.length-1}\x03`; };
-  t = t
-    .replace(/\$\$[\s\S]+?\$\$/g, saveMath)
-    .replace(/\$[^\n$]+?\$/g,     saveMath);
-
-  // 3. markdown → html
-  let html = marked.parse(t);
-
-  // 4. restore math (HTML-decoded, since marked may encode \)
-  mathBlocks.forEach((m, i) => {
-    html = html.replace(`\x02MATH${i}\x03`, m);
-  });
-
-  return html;
-}
-
-// ===== CODE BLOCK BUTTONS =====
-function enhanceCodeBlocks(bub) {
-  bub.querySelectorAll('pre').forEach(pre => {
-    const code = pre.querySelector('code');
-    if (!code) return;
-    if (pre.querySelector('.code-toolbar')) return;
-
-    // detect language
-    let lang = '';
-    code.classList.forEach(c => {
-      if (c.startsWith('language-')) lang = c.replace('language-','');
-    });
-
-    const toolbar = document.createElement('div');
-    toolbar.className = 'code-toolbar';
-
-    const langSpan = document.createElement('span');
-    langSpan.className = 'code-lang';
-    langSpan.textContent = lang || 'code';
-
-    const btns = document.createElement('div');
-    btns.className = 'code-btns';
-
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'code-btn';
-    copyBtn.textContent = '📋 کپی';
-
-    btns.appendChild(copyBtn);
-    toolbar.appendChild(langSpan);
-    toolbar.appendChild(btns);
-
-    pre.insertBefore(toolbar, code);
-
-    copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(code.innerText).then(() => {
-        copyBtn.textContent = '✅ کپی شد';
-        setTimeout(() => copyBtn.textContent = '📋 کپی', 2000);
-      });
-    });
-
-  });
-}
-
-
-// ===== ONE CHAT PANE (own model, history, attachments and stream) =====
-function createPane() {
-  const root = paneTpl.content.firstElementChild.cloneNode(true);
-  const $ = sel => root.querySelector(sel);
-
-  const mSel = $('.mSel');
-  const mLb = $('.mLb');
-  const clearBtn = $('.clearBtn');
-  const thTog = $('.thTog');
-  const srWrap = $('.srWrap');
-  const srTog = $('.srTog');
-  const chat = $('.chat');
-  const inp = $('.inp');
-  const sendBtn = $('.sendBtn');
-  const attachBtn = $('.attachBtn');
-  const fileInp = $('.fileInp');
-  const attachRow = $('.attachRow');
-  const addBtn = $('.addBtn');
-  const closeBtn = $('.closeBtn');
-  const titleEl = $('header h1');
-
-  let history = [];
-  let isStreaming = false;
-  let currentController = null;
-  let pendingAttachments = []; // { type:'image'|'file', name, mimeType?, data?(base64), dataUrl?, text? }
-
-  // the search toggle only applies to Perplexity models; keep the model label in sync too
-  function syncModelUI() {
-    const isPplx = mSel.value.startsWith('pplx:');
-    srWrap.style.display = isPplx ? '' : 'none';
-    if (!isPplx) srTog.checked = false;
-    mLb.textContent = mSel.options[mSel.selectedIndex].text;
-  }
-  mSel.addEventListener('change', syncModelUI);
-  syncModelUI();
+// ===== MODEL LABEL =====
+mSel.addEventListener('change', () => {
+  mLb.textContent = mSel.options[mSel.selectedIndex].text;
+});
 
 // ===== CLEAR =====
 clearBtn.addEventListener('click', () => {
@@ -1111,31 +983,245 @@ function regenerate(botMsg) {
   streamFromHistory();
 }
 
+// ===== TYPING INDICATOR =====
+function showTyping() {
+  const t = document.createElement('div');
+  t.className = 'typing';
+  t.id = 'typing';
+  t.innerHTML = '<span></span><span></span><span></span>';
+  chat.appendChild(t);
+  scrollBottom();
+}
 
-  // ===== TYPING INDICATOR =====
-  function showTyping() {
-    const t = document.createElement('div');
-    t.className = 'typing';
-    t.innerHTML = '<span></span><span></span><span></span>';
-    chat.appendChild(t);
-    scrollBottom();
-  }
+function hideTyping() {
+  const t = document.getElementById('typing');
+  if (t) t.remove();
+}
 
-  function hideTyping() {
-    const t = chat.querySelector('.typing');
-    if (t) t.remove();
-  }
+// ===== RENDER MARKDOWN =====
+function renderMd(text) {
+  // 1. normalize \[...\] → $$...$$ and \(...\) → $...$
+  let t = text
+    .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, m) => `\n$$\n${m}\n$$\n`)
+    .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g,  (_, m) => `$${m}$`);
+
+  // 2. preserve math blocks before marked.js can mangle underscores/asterisks inside them
+  const mathBlocks = [];
+  const saveMath = m => { mathBlocks.push(m); return `\x02MATH${mathBlocks.length-1}\x03`; };
+  t = t
+    .replace(/\$\$[\s\S]+?\$\$/g, saveMath)
+    .replace(/\$[^\n$]+?\$/g,     saveMath);
+
+  // 3. markdown → html
+  let html = marked.parse(t);
+
+  // 4. restore math (HTML-decoded, since marked may encode \)
+  mathBlocks.forEach((m, i) => {
+    html = html.replace(`\x02MATH${i}\x03`, m);
+  });
+
+  return html;
+}
+
+// ===== CODE BLOCK BUTTONS =====
+function enhanceCodeBlocks(bub) {
+  bub.querySelectorAll('pre').forEach(pre => {
+    const code = pre.querySelector('code');
+    if (!code) return;
+    if (pre.querySelector('.code-toolbar')) return;
+
+    // detect language
+    let lang = '';
+    code.classList.forEach(c => {
+      if (c.startsWith('language-')) lang = c.replace('language-','');
+    });
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'code-toolbar';
+
+    const langSpan = document.createElement('span');
+    langSpan.className = 'code-lang';
+    langSpan.textContent = lang || 'code';
+
+    const btns = document.createElement('div');
+    btns.className = 'code-btns';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'code-btn';
+    copyBtn.textContent = '📋 کپی';
+
+    btns.appendChild(copyBtn);
+    toolbar.appendChild(langSpan);
+    toolbar.appendChild(btns);
+
+    pre.insertBefore(toolbar, code);
+
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(code.innerText).then(() => {
+        copyBtn.textContent = '✅ کپی شد';
+        setTimeout(() => copyBtn.textContent = '📋 کپی', 2000);
+      });
+    });
+
+  });
+}
+
+// ===== STREAMING UI STATE (send ↔ stop button) =====
+const SEND_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
+const STOP_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>';
 
 function setStreamingUI(active) {
   isStreaming = active;
   sendBtn.classList.toggle('stop-mode', active);
   sendBtn.innerHTML = active ? STOP_ICON : SEND_ICON;
-  attachBtn.disabled = active;
+  attachBtn.disabled = active || mode !== 'chat';
   mSel.disabled = active;
+}
+
+// ===== GENERATION MODES (image / audio) =====
+const IMAGE_MODELS = [
+  ['gemini-3.1-flash-image', 'Gemini 3.1 Flash Image (متعادل)'],
+  ['gemini-3.1-flash-lite-image', 'Gemini 3.1 Flash Lite Image (ارزان و سریع)'],
+  ['gemini-3-pro-image', 'Gemini 3 Pro Image (بهترین کیفیت)'],
+  ['gemini-2.5-flash-image', 'Gemini 2.5 Flash Image (قدیمی)']
+];
+const TTS_MODELS = [
+  ['gemini-3.1-flash-tts-preview', 'Gemini 3.1 Flash TTS'],
+  ['gemini-2.5-flash-tts', 'Gemini 2.5 Flash TTS'],
+  ['gemini-2.5-flash-lite-preview-tts', 'Gemini 2.5 Flash Lite TTS'],
+  ['gemini-2.5-pro-tts', 'Gemini 2.5 Pro TTS']
+];
+const TTS_VOICES = ['Kore','Puck','Charon','Aoede','Fenrir','Leda','Orus','Zephyr','Achernar','Achird','Algenib','Algieba','Alnilam','Autonoe','Callirrhoe','Despina','Enceladus','Erinome','Gacrux','Iapetus','Laomedeia','Pulcherrima','Rasalgethi','Sadachbia','Sadaltager','Schedar','Sulafat','Umbriel','Vindemiatrix','Zubenelgenubi'];
+
+const genModel = document.getElementById('genModel');
+const voiceSel = document.getElementById('voiceSel');
+const langSel  = document.getElementById('langSel');
+const styleInp = document.getElementById('styleInp');
+const modeBtns = Array.from(document.querySelectorAll('#modes button'));
+let mode = 'chat';
+
+voiceSel.innerHTML = TTS_VOICES.map(v => '<option value="' + v + '">' + v + '</option>').join('');
+
+const savedGen = { image: IMAGE_MODELS[0][0], audio: TTS_MODELS[0][0] }; // remembers the last model per mode
+
+function setMode(m) {
+  if (isStreaming) return;
+  if (mode === 'image' || mode === 'audio') savedGen[mode] = genModel.value;
+  mode = m;
+  document.body.classList.remove('mode-image', 'mode-audio');
+  if (m !== 'chat') document.body.classList.add('mode-' + m);
+  modeBtns.forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  if (m !== 'chat') {
+    const list = m === 'image' ? IMAGE_MODELS : TTS_MODELS;
+    genModel.innerHTML = list.map(x => '<option value="' + x[0] + '">' + x[1] + '</option>').join('');
+    genModel.value = savedGen[m];
+  }
+  attachBtn.disabled = m !== 'chat';
+  inp.placeholder = m === 'image' ? 'تصویری که می‌خوای بسازم رو توصیف کن...'
+                  : m === 'audio' ? 'متنی که می‌خوای خونده بشه رو بنویس...'
+                  : 'پیامت رو بنویس...';
+  inp.focus();
+}
+modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+function b64ToBlobUrl(b64, type) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type }));
+}
+
+async function genSend() {
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  inp.style.height = 'auto';
+
+  const kind = mode; // 'image' | 'audio'
+  const userMsg = addUser(text, [], undefined);
+  const ua = userMsg.querySelector('.msg-actions');
+  if (ua) ua.remove(); // generation turns are not part of the chat history, so no edit button
+
+  setStreamingUI(true);
+  showTyping();
+  currentController = new AbortController();
+
+  const url = kind === 'image' ? '/api/image' : '/api/tts';
+  const payload = kind === 'image'
+    ? { model: genModel.value, prompt: text }
+    : { model: genModel.value, voice: voiceSel.value, lang: langSel.value, style: styleInp.value.trim(), text };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: currentController.signal
+    });
+    const raw = await res.text();
+    let data = {};
+    try { data = JSON.parse(raw); } catch (e) {}
+    hideTyping();
+
+    const { msg, bub } = addBot();
+    const ba = msg.querySelector('.msg-actions');
+    if (ba) ba.remove(); // no "regenerate" here either
+
+    if (!res.ok || data.error || !(data.image || data.audio)) {
+      bub.style.color = '#dc2626';
+      bub.textContent = 'خطا: ' + (data.error || raw.slice(0, 200) || res.status);
+      return;
+    }
+
+    if (kind === 'image') {
+      const mime = data.mimeType || 'image/png';
+      const src = b64ToBlobUrl(data.image, mime);
+      const img = document.createElement('img');
+      img.className = 'gen-img';
+      img.src = src;
+      img.alt = text;
+      bub.appendChild(img);
+      const a = document.createElement('a');
+      a.className = 'gen-dl';
+      a.href = src;
+      a.download = 'image.' + (mime.split('/')[1] || 'png').replace('jpeg', 'jpg');
+      a.textContent = '⬇️ دانلود';
+      bub.appendChild(a);
+    } else {
+      const src = b64ToBlobUrl(data.audio, data.mimeType || 'audio/mpeg');
+      const au = document.createElement('audio');
+      au.className = 'gen-audio';
+      au.controls = true;
+      au.src = src;
+      bub.appendChild(au);
+      const a = document.createElement('a');
+      a.className = 'gen-dl';
+      a.href = src;
+      a.download = 'speech.mp3';
+      a.textContent = '⬇️ دانلود';
+      bub.appendChild(a);
+      au.play().catch(() => {}); // browsers may block autoplay; the controls are still there
+    }
+    scrollBottom();
+  } catch (err) {
+    hideTyping();
+    if (err.name !== 'AbortError') {
+      const { msg, bub } = addBot();
+      const ba = msg.querySelector('.msg-actions');
+      if (ba) ba.remove();
+      bub.style.color = '#dc2626';
+      bub.textContent = 'خطای اتصال: ' + err.message;
+    }
+  } finally {
+    setStreamingUI(false);
+    currentController = null;
+    inp.focus();
+  }
 }
 
 // ===== MAIN SEND =====
 function sendMsg() {
+  if (mode !== 'chat') { genSend(); return; }
   const text = inp.value.trim();
   if (!text && !pendingAttachments.length) return;
 
@@ -1339,69 +1425,6 @@ async function streamFromHistory() {
     inp.focus();
   }
 }
-
-
-  return {
-    root, addBtn, closeBtn, titleEl,
-    getModel: () => mSel.value,
-    setModel(v) { mSel.value = v; syncModelUI(); },
-    stop() { if (currentController) currentController.abort(); },
-    focus() { inp.focus(); }
-  };
-}
-
-// ===== PANE MANAGER (+ button adds a chat next to the others) =====
-function refreshPanes() {
-  panes.forEach((p, i) => {
-    p.titleEl.textContent = i === 0 ? 'دستیار هوشمند' : 'چت ' + faNum(i + 1);
-  });
-  const full = panes.length >= MAX_PANES;
-  panes[0].addBtn.disabled = full;
-  panes[0].addBtn.title = full ? 'حداکثر ' + faNum(MAX_PANES) + ' چت' : 'افزودن چت جدید';
-}
-
-function addPane() {
-  if (panes.length >= MAX_PANES) return;
-  const isFirst = panes.length === 0;
-  const pane = createPane();
-
-  if (isFirst) {
-    pane.root.classList.add('is-first');
-    pane.closeBtn.remove();
-    pane.addBtn.addEventListener('click', () => addPane());
-  } else {
-    pane.addBtn.remove();
-    pane.setModel(panes[panes.length - 1].getModel());
-    pane.closeBtn.addEventListener('click', () => removePane(pane));
-    pane.root.classList.add('entering'); // starts at ~0 width, then grows to an equal share
-  }
-
-  panesEl.appendChild(pane.root);
-  panes.push(pane);
-  refreshPanes();
-
-  if (!isFirst) {
-    void pane.root.offsetWidth; // commit the start state so the transition runs
-    requestAnimationFrame(() => pane.root.classList.remove('entering'));
-    pane.focus();
-  }
-}
-
-function removePane(pane) {
-  const i = panes.indexOf(pane);
-  if (i <= 0) return; // the first chat can't be closed
-  pane.stop();
-  panes.splice(i, 1);
-  refreshPanes();
-
-  pane.root.classList.add('leaving');
-  let done = false;
-  const finish = () => { if (!done) { done = true; pane.root.remove(); } };
-  pane.root.addEventListener('transitionend', e => { if (e.propertyName === 'flex-grow') finish(); });
-  setTimeout(finish, 450);
-}
-
-addPane();
 </script>
 </body>
 </html>
