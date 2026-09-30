@@ -42,8 +42,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
-  var key = process.env.GEMINI_API_KEY;
-  if (!key) { res.status(500).json({ error: 'GEMINI_API_KEY تنظیم نشده' }); return; }
+  // prefer the AI Studio key; otherwise use the Google Cloud API key (the one starting with AQ.)
+  var key = process.env.GEMINI_API_KEY || process.env.GOOGLE_CLOUD_API_KEY;
+  if (!key) { res.status(500).json({ error: 'نه GEMINI_API_KEY و نه GOOGLE_CLOUD_API_KEY تنظیم شده' }); return; }
 
   var body = req.body || {};
   var model = String(body.model || 'gemini-3.1-flash-image');
