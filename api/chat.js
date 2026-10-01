@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 export const config = { maxDuration: 300 };
 
 // ===== helpers: convert our internal message format to each provider's shape =====
@@ -58,6 +60,206 @@ function toGeminiParts(content) {
     });
   }
   return [{ type: 'text', text: String(content || '') }];
+}
+
+
+// ===== web search helpers =====
+function sourcesMd(list) {
+  var seen = {}, out = [];
+  (list || []).forEach(function (s) {
+    if (!s || !s.url || seen[s.url]) return;
+    seen[s.url] = true;
+    out.push((out.length + 1) + '. [' + String(s.title || s.url).replace(/[\[\]\n]/g, ' ').slice(0, 120) + '](' + s.url + ')');
+  });
+  return out.length ? '\n\n---\n**منابع:**\n' + out.join('\n') : '';
+}
+
+// Perplexity Search API: real web results that we hand to models that have no search of their own
+async function pplxSearch(apiKey, query) {
+  var r = await fetch('https://api.perplexity.ai/search', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: String(query).slice(0, 400), max_results: 5 })
+  });
+  if (!r.ok) {
+    var t = await r.text().catch(function () { return ''; });
+    throw new Error('Perplexity Search ' + r.status + (t ? ': ' + t.slice(0, 150) : ''));
+  }
+  var j = await r.json();
+  return (j.results || []).map(function (x) {
+    return { title: x.title || x.url, url: x.url, snippet: String(x.snippet || '').slice(0, 700) };
+  });
+}
+
+function searchContextText(results) {
+  var today = new Date().toISOString().slice(0, 10);
+  return '\n\nنتایج جستجوی وب (تاریخ امروز ' + today + '). در صورت ربط داشتن از آن‌ها استفاده کن و با شماره‌ی [n] به منبع ارجاع بده:\n' +
+    results.map(function (x, i) { return '[' + (i + 1) + '] ' + x.title + ' — ' + x.url + '\n' + x.snippet; }).join('\n\n');
+}
+
+// streams an OpenAI-compatible chat/completions endpoint; returns { sources } or null after sending an error
+async function streamOpenAI(url, apiKey, payload, label, send) {
+  var res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    var et = await res.text().catch(function () { return ''; });
+    send({ error: label + ' ' + res.status + (et ? ': ' + et.slice(0, 200) : '') });
+    return null;
+  }
+  var reader = res.body.getReader();
+  var dec = new TextDecoder();
+  var buf = '';
+  var sources = [];
+  while (true) {
+    var chunk = await reader.read();
+    if (chunk.done) break;
+    buf += dec.decode(chunk.value, { stream: true });
+    var lines = buf.split('\n');
+    buf = lines.pop() || '';
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (line.indexOf('data: ') !== 0) continue;
+      var d = line.slice(6).trim();
+      if (!d || d === '[DONE]') continue;
+      try {
+        var o = JSON.parse(d);
+        var delta = o.choices && o.choices[0] && o.choices[0].delta;
+        if (delta && delta.reasoning_content) send({ thinking: delta.reasoning_content });
+        if (delta && delta.content) send({ delta: delta.content });
+        if (Array.isArray(o.search_results)) {
+          o.search_results.forEach(function (s) { if (s && s.url) sources.push({ title: s.title, url: s.url }); });
+        } else if (Array.isArray(o.citations)) {
+          o.citations.forEach(function (u) { if (typeof u === 'string') sources.push({ title: u, url: u }); });
+        }
+      } catch (e) {}
+    }
+  }
+  return { sources: sources };
+}
+
+// ===== Google Cloud (Vertex AI): service-account JSON -> OAuth token, then streamGenerateContent =====
+function b64url(input) {
+  return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+var gcpToken = { token: null, exp: 0 };
+async function getGcpToken(sa) {
+  var now = Math.floor(Date.now() / 1000);
+  if (gcpToken.token && gcpToken.exp - 60 > now) return gcpToken.token;
+  var header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  var claim = b64url(JSON.stringify({
+    iss: sa.client_email, scope: 'https://www.googleapis.com/auth/cloud-platform',
+    aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600
+  }));
+  var signer = crypto.createSign('RSA-SHA256');
+  signer.update(header + '.' + claim);
+  var sig = signer.sign(sa.private_key).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  var r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=' + encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer') +
+          '&assertion=' + encodeURIComponent(header + '.' + claim + '.' + sig)
+  });
+  var j = await r.json().catch(function () { return {}; });
+  if (!r.ok || !j.access_token) throw new Error('توکن گوگل گرفته نشد: ' + (j.error_description || j.error || r.status));
+  gcpToken = { token: j.access_token, exp: now + (j.expires_in || 3600) };
+  return gcpToken.token;
+}
+function loadServiceAccount() {
+  var raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+  var sa;
+  try { sa = JSON.parse(raw); } catch (e) { throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON یک JSON معتبر نیست'); }
+  if (!sa.client_email || !sa.private_key || !sa.project_id) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON کامل نیست');
+  if (sa.private_key.indexOf('\\n') !== -1) sa.private_key = sa.private_key.replace(/\\n/g, '\n');
+  return sa;
+}
+function vertexStreamUrl(project, location, model) {
+  var host = location === 'global' ? 'aiplatform.googleapis.com' : location + '-aiplatform.googleapis.com';
+  return 'https://' + host + '/v1/projects/' + project + '/locations/' + location +
+         '/publishers/google/models/' + model + ':streamGenerateContent?alt=sse';
+}
+function toVertexContents(messages) {
+  return messages.map(function (m) {
+    var parts;
+    if (Array.isArray(m.content)) {
+      parts = m.content.map(function (p) {
+        if (p.type === 'image') return { inlineData: { mimeType: p.mimeType || 'image/png', data: p.data } };
+        return { text: String(p.text || '') };
+      });
+    } else {
+      parts = [{ text: String(m.content || '') }];
+    }
+    if (!parts.length) parts = [{ text: '' }];
+    return { role: m.role === 'assistant' ? 'model' : 'user', parts: parts };
+  });
+}
+// streams a Gemini answer through Vertex AI (billed on the Google Cloud project)
+async function streamVertexGemini(sa, model, messages, search, send) {
+  var token = await getGcpToken(sa);
+  var locations = process.env.GOOGLE_CLOUD_LOCATION ? [process.env.GOOGLE_CLOUD_LOCATION] : ['global', 'us-central1'];
+  var reqObj = {
+    contents: toVertexContents(messages),
+    generationConfig: { thinkingConfig: { includeThoughts: true } }
+  };
+  if (search) reqObj.tools = [{ googleSearch: {} }]; // Grounding with Google Search
+  var reqBody = JSON.stringify(reqObj);
+  var webSources = [];
+
+  var gRes = null, lastErr = '';
+  for (var li = 0; li < locations.length; li++) {
+    gRes = await fetch(vertexStreamUrl(sa.project_id, locations[li], model), {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: reqBody
+    });
+    if (gRes.ok) break;
+    var t = await gRes.text().catch(function () { return ''; });
+    lastErr = 'Vertex AI ' + gRes.status + ' (' + locations[li] + '): ' + t.slice(0, 300);
+    if (gRes.status !== 404) break; // 404 = model not in this location -> try the next one
+  }
+  if (!gRes || !gRes.ok) { send({ error: lastErr }); return; }
+
+  var reader = gRes.body.getReader();
+  var dec = new TextDecoder();
+  var buf = '';
+  while (true) {
+    var chunk = await reader.read();
+    if (chunk.done) break;
+    buf += dec.decode(chunk.value, { stream: true });
+    var lines = buf.split('\n');
+    buf = lines.pop() || '';
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (line.indexOf('data: ') !== 0) continue;
+      var d = line.slice(6).trim();
+      if (!d || d === '[DONE]') continue;
+      try {
+        var o = JSON.parse(d);
+        var cand = o.candidates && o.candidates[0];
+        var gm = cand && (cand.groundingMetadata || cand.grounding_metadata);
+        var gch = gm && (gm.groundingChunks || gm.grounding_chunks);
+        if (gch) {
+          for (var gj = 0; gj < gch.length; gj++) {
+            if (gch[gj] && gch[gj].web && gch[gj].web.uri) webSources.push({ title: gch[gj].web.title || gch[gj].web.uri, url: gch[gj].web.uri });
+          }
+        }
+        var parts = cand && cand.content && cand.content.parts;
+        if (parts) {
+          for (var k = 0; k < parts.length; k++) {
+            if (typeof parts[k].text !== 'string' || !parts[k].text) continue;
+            if (parts[k].thought) send({ thinking: parts[k].text });
+            else send({ delta: parts[k].text });
+          }
+        }
+      } catch (e) {}
+    }
+  }
+  var srcMd = search ? sourcesMd(webSources) : '';
+  if (srcMd) send({ delta: srcMd });
+  send({ done: true });
 }
 
 export default async function handler(req, res) {
@@ -175,8 +377,23 @@ export default async function handler(req, res) {
   if (model.startsWith('gemini:')) {
     var geminiModel = model.slice(7); // e.g. "gemini-3.8-flash"
 
+    // preferred: Google Cloud (Vertex AI) with the service-account JSON
+    try {
+      var gSA = loadServiceAccount();
+      if (gSA) {
+        await streamVertexGemini(gSA, geminiModel, messages, !!search, send);
+        res.end();
+        return;
+      }
+    } catch (e) {
+      send({ error: 'Gemini (Google Cloud): ' + (e && e.message ? e.message : 'خطای ناشناخته') });
+      res.end();
+      return;
+    }
+
+    // fallback: Gemini API with an API key
     if (!GEMINI_API_KEY) {
-      send({ error: 'GEMINI_API_KEY تنظیم نشده است' });
+      send({ error: 'نه GOOGLE_SERVICE_ACCOUNT_JSON و نه GEMINI_API_KEY تنظیم شده' });
       res.end();
       return;
     }
@@ -253,48 +470,57 @@ export default async function handler(req, res) {
     }
   }
 
-  // ===== DEEPSEEK =====
+  // ===== SONAR (Perplexity Sonar API: always searches the web) =====
+  if (model.startsWith('sonar:')) {
+    try {
+      var sonarRes = await streamOpenAI('https://api.perplexity.ai/v1/sonar', PERPLEXITY_API_KEY,
+        { model: model.slice(6), messages: messages.map(toOpenAIMsg), stream: true }, 'Sonar', send);
+      if (sonarRes) {
+        var sMd = sourcesMd(sonarRes.sources);
+        if (sMd) send({ delta: sMd });
+        send({ done: true });
+      }
+    } catch (e) {
+      send({ error: 'Sonar: ' + (e && e.message ? e.message : 'خطای ناشناخته') });
+    }
+    res.end();
+    return;
+  }
+
+  // ===== DEEPSEEK: OpenAI-compatible; web search via Perplexity Search API =====
   try {
     var sys = { role: 'system', content: 'شما یک دستیار هوشمند و دقیق هستید. همیشه به زبان فارسی توضیح بده ولی کدها رو به انگلیسی بنویس.' };
-    var msgs = [sys].concat(messages.map(toOpenAIMsg));
-    var dsRes = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + DEEPSEEK_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: model, messages: msgs, stream: true, max_tokens: 16384 })
-    });
-    if (!dsRes.ok) {
-      var dsErrTxt = await dsRes.text().catch(function () { return ''; });
-      send({ error: 'DeepSeek ' + dsRes.status + (dsErrTxt ? ': ' + dsErrTxt.slice(0, 200) : '') });
-      res.end();
-      return;
-    }
-
-    var dsReader = dsRes.body.getReader();
-    var dsDec = new TextDecoder();
-    var dsBuf = '';
-    while (true) {
-      var dsChunk = await dsReader.read();
-      if (dsChunk.done) break;
-      dsBuf += dsDec.decode(dsChunk.value, { stream: true });
-      var dsLines = dsBuf.split('\n');
-      dsBuf = dsLines.pop() || '';
-      for (var j = 0; j < dsLines.length; j++) {
-        var dsLine = dsLines[j];
-        if (dsLine.indexOf('data: ') !== 0) continue;
-        var dsD = dsLine.slice(6).trim();
-        if (!dsD || dsD === '[DONE]') continue;
+    // the Code page sends its own instructions (language, output format)
+    if (typeof body.system === 'string' && body.system.trim()) sys.content = body.system.slice(0, 6000);
+    var sources = [];
+    if (search) {
+      if (!PERPLEXITY_API_KEY) {
+        send({ delta: '⚠️ سرچ کار نکرد: PERPLEXITY_API_KEY تنظیم نشده.\n\n' });
+      } else {
         try {
-          var dsObj = JSON.parse(dsD);
-          var deltaObj = dsObj.choices && dsObj.choices[0] && dsObj.choices[0].delta;
-          if (deltaObj && deltaObj.reasoning_content) send({ thinking: deltaObj.reasoning_content });
-          if (deltaObj && deltaObj.content) send({ delta: deltaObj.content });
-        } catch (e) {}
+          var found = await pplxSearch(PERPLEXITY_API_KEY, extractText((messages[messages.length - 1] || {}).content));
+          if (found.length) { sys.content += searchContextText(found); sources = found; }
+        } catch (se) {
+          send({ delta: '⚠️ سرچ کار نکرد (' + (se && se.message ? se.message : 'خطا') + ')\n\n' });
+        }
       }
     }
-    send({ done: true });
+    var msgs = [sys].concat(messages.map(toOpenAIMsg));
+
+    var url = 'https://api.deepseek.com/chat/completions';
+    var key = DEEPSEEK_API_KEY;
+    var label = 'DeepSeek';
+    var payload = { model: model, messages: msgs, stream: true, max_tokens: model === 'deepseek-chat' ? 8192 : 16384 }; // deepseek-chat (V3) allows at most 8192
+
+    var oaRes = await streamOpenAI(url, key, payload, label, send);
+    if (oaRes) {
+      var srcMd = sourcesMd(sources);
+      if (srcMd) send({ delta: srcMd });
+      send({ done: true });
+    }
     res.end();
   } catch (e) {
-    send({ error: 'DeepSeek: ' + (e && e.message ? e.message : 'خطای ناشناخته') });
+    send({ error: 'مدل: ' + (e && e.message ? e.message : 'خطای ناشناخته') });
     res.end();
   }
 }
