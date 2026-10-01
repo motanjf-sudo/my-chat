@@ -98,7 +98,7 @@ function searchContextText(results) {
 }
 
 // streams an OpenAI-compatible chat/completions endpoint; returns { sources } or null after sending an error
-async function streamOpenAI(url, apiKey, payload, label, send) {
+async function streamOpenAI(url, apiKey, payload, label, send, quiet) {
   var res = await fetch(url, {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
@@ -106,13 +106,15 @@ async function streamOpenAI(url, apiKey, payload, label, send) {
   });
   if (!res.ok) {
     var et = await res.text().catch(function () { return ''; });
-    send({ error: label + ' ' + res.status + (et ? ': ' + et.slice(0, 200) : '') });
+    if (!quiet) send({ error: label + ' ' + res.status + (et ? ': ' + et.slice(0, 200) : '') });
     return null;
   }
   var reader = res.body.getReader();
   var dec = new TextDecoder();
   var buf = '';
   var sources = [];
+  var finish = '';
+  var text = '';
   while (true) {
     var chunk = await reader.read();
     if (chunk.done) break;
@@ -128,7 +130,8 @@ async function streamOpenAI(url, apiKey, payload, label, send) {
         var o = JSON.parse(d);
         var delta = o.choices && o.choices[0] && o.choices[0].delta;
         if (delta && delta.reasoning_content) send({ thinking: delta.reasoning_content });
-        if (delta && delta.content) send({ delta: delta.content });
+        if (delta && delta.content) { text += delta.content; send({ delta: delta.content }); }
+        if (o.choices && o.choices[0] && o.choices[0].finish_reason) finish = o.choices[0].finish_reason;
         if (Array.isArray(o.search_results)) {
           o.search_results.forEach(function (s) { if (s && s.url) sources.push({ title: s.title, url: s.url }); });
         } else if (Array.isArray(o.citations)) {
@@ -137,7 +140,7 @@ async function streamOpenAI(url, apiKey, payload, label, send) {
       } catch (e) {}
     }
   }
-  return { sources: sources };
+  return { sources: sources, finish: finish, text: text };
 }
 
 // ===== Google Cloud (Vertex AI): service-account JSON -> OAuth token, then streamGenerateContent =====
@@ -197,13 +200,17 @@ function toVertexContents(messages) {
   });
 }
 // streams a Gemini answer through Vertex AI (billed on the Google Cloud project)
-async function streamVertexGemini(sa, model, messages, search, send) {
+async function streamVertexGemini(sa, model, messages, search, send, system) {
   var token = await getGcpToken(sa);
   var locations = process.env.GOOGLE_CLOUD_LOCATION ? [process.env.GOOGLE_CLOUD_LOCATION] : ['global', 'us-central1'];
   var reqObj = {
     contents: toVertexContents(messages),
     generationConfig: { thinkingConfig: { includeThoughts: true } }
   };
+  if (system) { // code view: instructions + room for long programs
+    reqObj.systemInstruction = { role: 'system', parts: [{ text: system }] };
+    reqObj.generationConfig.maxOutputTokens = 32768;
+  }
   if (search) reqObj.tools = [{ googleSearch: {} }]; // Grounding with Google Search
   var reqBody = JSON.stringify(reqObj);
   var webSources = [];
@@ -381,7 +388,7 @@ export default async function handler(req, res) {
     try {
       var gSA = loadServiceAccount();
       if (gSA) {
-        await streamVertexGemini(gSA, geminiModel, messages, !!search, send);
+        await streamVertexGemini(gSA, geminiModel, messages, !!search, send, (typeof body.system === 'string' && body.system.trim()) ? body.system.slice(0, 6000) : '');
         res.end();
         return;
       }
@@ -402,7 +409,7 @@ export default async function handler(req, res) {
       // flatten prior turns into plain text context (Interactions API's `input`
       // is a single-turn content array, not a full role-tagged history), then
       // attach the current turn's parts (including any image) as-is.
-      var historyText = '';
+      var historyText = (typeof body.system === 'string' && body.system.trim()) ? 'Instructions: ' + body.system.slice(0, 6000) + '\n\n' : '';
       for (var gi = 0; gi < messages.length - 1; gi++) {
         var gm = messages[gi];
         var roleLabel = gm.role === 'assistant' ? 'Assistant' : 'User';
@@ -510,9 +517,28 @@ export default async function handler(req, res) {
     var url = 'https://api.deepseek.com/chat/completions';
     var key = DEEPSEEK_API_KEY;
     var label = 'DeepSeek';
-    var payload = { model: model, messages: msgs, stream: true, max_tokens: model === 'deepseek-chat' ? 8192 : 16384 }; // deepseek-chat (V3) allows at most 8192
+    var payload = { model: model, messages: msgs, stream: true, max_tokens: model === 'deepseek-chat' ? 8192 : 16384 };
+    // V4 models think by default and reasoning eats the token budget; the code view asks for no thinking
+    if (body.think === false && (model === 'deepseek-flash' || model === 'deepseek-v4-pro')) payload.thinking = { type: 'disabled' }; // deepseek-chat (V3) allows at most 8192
 
     var oaRes = await streamOpenAI(url, key, payload, label, send);
+    // the model stopped because of the token cap (long code, long answers): keep going automatically
+    var produced = oaRes ? oaRes.text : '';
+    for (var round = 0; oaRes && oaRes.finish === 'length' && produced && round < 6; round++) {
+      var base = msgs.slice();
+      var next = await streamOpenAI('https://api.deepseek.com/beta/chat/completions', key,
+        { model: model, messages: base.concat([{ role: 'assistant', content: produced, prefix: true }]), stream: true, max_tokens: payload.max_tokens },
+        label, send, true);
+      if (!next) {
+        // prefix mode unavailable: ask the model to carry on instead
+        next = await streamOpenAI(url, key,
+          { model: model, messages: base.concat([{ role: 'assistant', content: produced }, { role: 'user', content: 'Your previous message was cut off by the length limit. Continue EXACTLY from the last character you wrote. Do not repeat anything, do not add any intro, and do not start a new code fence unless you were outside one.' }]), stream: true, max_tokens: payload.max_tokens },
+          label, send);
+        if (!next) { oaRes = null; break; }
+      }
+      produced += next.text;
+      oaRes.finish = next.finish;
+    }
     if (oaRes) {
       var srcMd = sourcesMd(sources);
       if (srcMd) send({ delta: srcMd });
