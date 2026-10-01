@@ -860,6 +860,8 @@ body.view-code #codeView { display: flex; animation: cvIn 0.35s cubic-bezier(0.2
 
 .cv-card-sub { direction: ltr; text-align: right; }
 .cv-sel { text-overflow: ellipsis; }
+.cv-thinking { color: var(--gray-400); font-size: .8rem; padding: 4px 2px; animation: cvPulse 1.4s ease-in-out infinite; }
+@keyframes cvPulse { 50% { opacity: .4; } }
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.12.0/styles/github.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.12.0/highlight.min.js"></script>
@@ -958,7 +960,7 @@ body.view-code #codeView { display: flex; animation: cvIn 0.35s cubic-bezier(0.2
     <button type="button" class="cv-btn" id="cvBack" title="برگشت به چت">→ چت</button>
     <h2>💻 کدنویسی</h2>
     <select class="cv-sel" id="cvLang" title="زبان برنامه‌نویسی" aria-label="زبان برنامه‌نویسی"></select>
-    <select class="cv-sel" id="cvModel" title="مدل" aria-label="مدل DeepSeek"></select>
+    <select class="cv-sel" id="cvModel" title="مدل" aria-label="مدل"></select>
     <button type="button" class="cv-btn danger" id="cvClear" title="پاک کردن گفتگو"><span>🗑️</span><span class="cv-lbl"> پاک</span></button>
   </div>
 
@@ -1742,12 +1744,20 @@ async function streamFromHistory() {
   ];
   const LANG = id => LANGS.find(l => l.id === id) || LANGS[0];
 
-  const MODELS = [
-    ['deepseek-flash',    'DeepSeek V4.1 Flash'],
-    ['deepseek-v4-pro',   'DeepSeek V4 Pro'],
-    ['deepseek-chat',     'DeepSeek V3'],
-    ['deepseek-reasoner', 'DeepSeek Reasoner']
+  const MODEL_GROUPS = [
+    ['DeepSeek', [
+      ['deepseek-flash',    'DeepSeek V4.1 Flash'],
+      ['deepseek-v4-pro',   'DeepSeek V4 Pro'],
+      ['deepseek-chat',     'DeepSeek V3'],
+      ['deepseek-reasoner', 'DeepSeek Reasoner']
+    ]],
+    ['Gemini (Google Cloud)', [
+      ['gemini:gemini-3.8-flash',       'Gemini 3.8 Flash'],
+      ['gemini:gemini-3.7-flash',       'Gemini 3.7 Flash'],
+      ['gemini:gemini-3.1-pro-preview', 'Gemini 3.1 Pro']
+    ]]
   ];
+  const MODELS = MODEL_GROUPS.reduce((a, g) => a.concat(g[1]), []);
 
   // ---------- elements ----------
   const view = $('codeView'), main = $('cvMain'), list = $('cvList'), inp = $('cvInp'), sendBtn = $('cvSend');
@@ -1777,7 +1787,7 @@ async function streamFromHistory() {
   };
 
   langSel.innerHTML = LANGS.map(l => '<option value="' + l.id + '">' + l.label + '</option>').join('');
-  modelSel.innerHTML = MODELS.map(m => '<option value="' + m[0] + '">' + m[1] + '</option>').join('');
+  modelSel.innerHTML = MODEL_GROUPS.map(g => '<optgroup label="' + g[0] + '">' + g[1].map(m => '<option value="' + m[0] + '">' + m[1] + '</option>').join('') + '</optgroup>').join('');
   langSel.value = LANGS.some(l => l.id === store.get('lang')) ? store.get('lang') : 'html';
   modelSel.value = MODELS.some(m => m[0] === store.get('model')) ? store.get('model') : 'deepseek-flash';
   langSel.addEventListener('change', () => store.set('lang', langSel.value));
@@ -2231,7 +2241,9 @@ async function streamFromHistory() {
       if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
       raw += pending; pending = '';
       bot.dots.remove();
+      if (bot.think) { bot.think.remove(); bot.think = null; }
       render(true);
+      if (!raw.trim() && !note) errorBubble(bot, 'مدل پاسخی نداد. دوباره امتحان کن یا مدل دیگه‌ای انتخاب کن.');
       if (note) {
         const n = document.createElement('div');
         n.style.cssText = 'color:var(--gray-400);font-size:.75rem;margin-top:6px';
@@ -2247,7 +2259,7 @@ async function streamFromHistory() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages: apiMessages(), system: systemPrompt(lang), search: false }),
+        body: JSON.stringify({ model, messages: apiMessages(), system: systemPrompt(lang), search: false, think: false }),
         signal: controller.signal
       });
       if (!res.ok) {
@@ -2271,7 +2283,8 @@ async function streamFromHistory() {
           if (!data || data === '[DONE]') continue;
           let evt;
           try { evt = JSON.parse(data); } catch (e) { continue; }
-          if (evt.delta) { pending += evt.delta; schedule(); }
+          if (evt.thinking && !raw && !pending) { if (!bot.think) { bot.think = document.createElement('div'); bot.think.className = 'cv-thinking'; bot.think.textContent = 'در حال فکر کردن…'; bot.msg.appendChild(bot.think); scrollList(); } }
+          else if (evt.delta) { pending += evt.delta; if (bot.think) { bot.think.remove(); bot.think = null; } schedule(); }
           else if (evt.error) { finish(); errorBubble(bot, 'خطا: ' + evt.error); return; }
           else if (evt.done) { finish(); }
         }
