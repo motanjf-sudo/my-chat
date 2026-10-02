@@ -1758,6 +1758,9 @@ async function streamFromHistory() {
     ]],
     ['OpenAI', [
       ['pplx:openai/gpt-6-luna', 'GPT-6 Luna']
+    ]],
+    ['GLM', [
+      ['pplx:perplexity/glm-5.3-flash', 'GLM 5.3 Flash']
     ]]
   ];
   const MODELS = MODEL_GROUPS.reduce((a, g) => a.concat(g[1]), []);
