@@ -348,6 +348,9 @@ export default async function handler(req, res) {
         if (tools) pplxBody.tools = tools;
       }
 
+      // code view: its own instructions (language, output format, quality rules)
+      if (typeof body.system === 'string' && body.system.trim()) pplxBody.instructions = body.system.slice(0, 6000);
+
       var pRes = await fetch('https://api.perplexity.ai/v1/agent', {
         method: 'POST',
         headers: chromeH,
