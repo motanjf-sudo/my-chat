@@ -1832,7 +1832,9 @@ async function streamFromHistory() {
       '4. After the code block write nothing, or at most one short Persian sentence about how to run it.',
       '5. When the user asks for a change, output the full updated program again, not a diff.',
       lang.rule ? '6. ' + lang.rule : '',
-      'Write clean, well-structured code with brief comments, handle edge cases, and make sure it actually works.'
+      'Write clean, well-structured code with brief comments, handle edge cases, and make sure it actually works.',
+      'QUALITY BAR: the code must be completely bug-free. Before answering, carefully re-read and mentally execute your whole program once from top to bottom: every variable, function, import and DOM id must exist and be defined before use, no syntax errors, no runtime errors, no infinite loops, no blank or black screen, and no console errors. Never use placeholders, TODOs or omitted parts. Prefer simple, robust code over clever code, and finish every feature you start.',
+      lang.id === 'html' ? 'GRAPHICS BAR: deliver the best possible visual quality: a polished modern design, rich colors and gradients, depth with shadows and glow, crisp typography, smooth 60 FPS animations and transitions, responsive layout for mobile and desktop, and tasteful micro-interactions. For canvas/WebGL/Three.js work use the best graphics techniques available (good lighting, procedural textures, fog, particles, bloom-like glow where it is safe) while keeping the code stable and error-free. Wrap risky initialization in try/catch and show errors visibly on screen instead of failing silently.' : ''
     ].filter(Boolean).join('\n');
   }
 
