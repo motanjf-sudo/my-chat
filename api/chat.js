@@ -375,6 +375,18 @@ export default async function handler(req, res) {
       var reader = pRes.body.getReader();
       var dec = new TextDecoder();
       var buf = '';
+      var gotText = false, pplxFail = '', seenTypes = {};
+      // text of a finished response (used when no streaming deltas arrived)
+      function finalText(resp) {
+        var out = '';
+        var items = (resp && resp.output) || [];
+        for (var a = 0; a < items.length; a++) {
+          var cs = items[a] && items[a].content;
+          if (!Array.isArray(cs)) continue;
+          for (var b = 0; b < cs.length; b++) if (cs[b] && typeof cs[b].text === 'string') out += cs[b].text;
+        }
+        return out || (resp && typeof resp.output_text === 'string' ? resp.output_text : '');
+      }
       while (true) {
         var chunk = await reader.read();
         if (chunk.done) break;
@@ -388,14 +400,28 @@ export default async function handler(req, res) {
           if (!d || d === '[DONE]') continue;
           try {
             var obj = JSON.parse(d);
+            if (obj.type) seenTypes[obj.type] = true;
             // typed SSE events from Agent API
             if (obj.type === 'response.output_text.delta' && obj.delta) {
+              gotText = true;
               send({ delta: obj.delta });
-            } else if (obj.type === 'response.reasoning.delta' && obj.delta) {
+            } else if ((obj.type === 'response.reasoning.delta' || obj.type === 'response.reasoning_text.delta' || obj.type === 'response.reasoning_summary_text.delta') && obj.delta) {
               send({ thinking: obj.delta });
+            } else if (obj.type === 'response.completed' && !gotText) {
+              var ft = finalText(obj.response);
+              if (ft) { gotText = true; send({ delta: ft }); }
+            } else if (obj.type === 'response.failed' || obj.type === 'error') {
+              var em = (obj.response && obj.response.error && obj.response.error.message) || (obj.error && (obj.error.message || obj.error)) || obj.message || '';
+              pplxFail = String(em || 'خطای نامشخص').slice(0, 300);
             }
           } catch (e) {}
         }
+      }
+      if (pplxFail) { send({ error: 'Perplexity: ' + pplxFail }); res.end(); return; }
+      if (!gotText) {
+        send({ error: 'Perplexity پاسخی نداد (' + pplxModel + '). رویدادهای دریافتی: ' + (Object.keys(seenTypes).join(', ') || 'هیچ') });
+        res.end();
+        return;
       }
       send({ done: true });
       res.end();
