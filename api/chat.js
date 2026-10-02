@@ -212,57 +212,81 @@ async function streamVertexGemini(sa, model, messages, search, send, system) {
     reqObj.generationConfig.maxOutputTokens = 32768;
   }
   if (search) reqObj.tools = [{ googleSearch: {} }]; // Grounding with Google Search
-  var reqBody = JSON.stringify(reqObj);
+  var baseContents = reqObj.contents;
   var webSources = [];
+  var produced = '';
+  var MAX_ROUNDS = 7; // first answer + up to 6 automatic continuations
 
-  var gRes = null, lastErr = '';
-  for (var li = 0; li < locations.length; li++) {
-    gRes = await fetch(vertexStreamUrl(sa.project_id, locations[li], model), {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: reqBody
-    });
-    if (gRes.ok) break;
-    var t = await gRes.text().catch(function () { return ''; });
-    lastErr = 'Vertex AI ' + gRes.status + ' (' + locations[li] + '): ' + t.slice(0, 300);
-    if (gRes.status !== 404) break; // 404 = model not in this location -> try the next one
-  }
-  if (!gRes || !gRes.ok) { send({ error: lastErr }); return; }
-
-  var reader = gRes.body.getReader();
-  var dec = new TextDecoder();
-  var buf = '';
-  while (true) {
-    var chunk = await reader.read();
-    if (chunk.done) break;
-    buf += dec.decode(chunk.value, { stream: true });
-    var lines = buf.split('\n');
-    buf = lines.pop() || '';
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      if (line.indexOf('data: ') !== 0) continue;
-      var d = line.slice(6).trim();
-      if (!d || d === '[DONE]') continue;
-      try {
-        var o = JSON.parse(d);
-        var cand = o.candidates && o.candidates[0];
-        var gm = cand && (cand.groundingMetadata || cand.grounding_metadata);
-        var gch = gm && (gm.groundingChunks || gm.grounding_chunks);
-        if (gch) {
-          for (var gj = 0; gj < gch.length; gj++) {
-            if (gch[gj] && gch[gj].web && gch[gj].web.uri) webSources.push({ title: gch[gj].web.title || gch[gj].web.uri, url: gch[gj].web.uri });
-          }
-        }
-        var parts = cand && cand.content && cand.content.parts;
-        if (parts) {
-          for (var k = 0; k < parts.length; k++) {
-            if (typeof parts[k].text !== 'string' || !parts[k].text) continue;
-            if (parts[k].thought) send({ thinking: parts[k].text });
-            else send({ delta: parts[k].text });
-          }
-        }
-      } catch (e) {}
+  for (var round = 0; round < MAX_ROUNDS; round++) {
+    if (round > 0) {
+      reqObj.contents = baseContents.concat([
+        { role: 'model', parts: [{ text: produced }] },
+        { role: 'user', parts: [{ text: 'Your previous message was cut off before it was finished. Continue EXACTLY from the last character you wrote: do not repeat anything, do not add any introduction or apology, and do not open a new code fence if you are already inside one. Finish the program completely and then close the code block with ``` .' }] }
+      ]);
     }
+    var reqBody = JSON.stringify(reqObj);
+    var gRes = null, lastErr = '';
+    for (var li = 0; li < locations.length; li++) {
+      gRes = await fetch(vertexStreamUrl(sa.project_id, locations[li], model), {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: reqBody
+      });
+      if (gRes.ok) break;
+      var t = await gRes.text().catch(function () { return ''; });
+      lastErr = 'Vertex AI ' + gRes.status + ' (' + locations[li] + '): ' + t.slice(0, 300);
+      if (gRes.status !== 404) break; // 404 = model not in this location -> try the next one
+    }
+    if (!gRes || !gRes.ok) {
+      if (round === 0) { send({ error: lastErr }); return; }
+      break; // a continuation failed: keep what we already streamed
+    }
+
+    var finish = '';
+    var roundText = '';
+    var reader = gRes.body.getReader();
+    var dec = new TextDecoder();
+    var buf = '';
+    while (true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buf += dec.decode(chunk.value, { stream: true });
+      var lines = buf.split('\n');
+      buf = lines.pop() || '';
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        if (line.indexOf('data: ') !== 0) continue;
+        var d = line.slice(6).trim();
+        if (!d || d === '[DONE]') continue;
+        try {
+          var o = JSON.parse(d);
+          var cand = o.candidates && o.candidates[0];
+          var fr = cand && (cand.finishReason || cand.finish_reason);
+          if (fr) finish = fr;
+          var gm = cand && (cand.groundingMetadata || cand.grounding_metadata);
+          var gch = gm && (gm.groundingChunks || gm.grounding_chunks);
+          if (gch) {
+            for (var gj = 0; gj < gch.length; gj++) {
+              if (gch[gj] && gch[gj].web && gch[gj].web.uri) webSources.push({ title: gch[gj].web.title || gch[gj].web.uri, url: gch[gj].web.uri });
+            }
+          }
+          var parts = cand && cand.content && cand.content.parts;
+          if (parts) {
+            for (var k = 0; k < parts.length; k++) {
+              if (typeof parts[k].text !== 'string' || !parts[k].text) continue;
+              if (parts[k].thought) send({ thinking: parts[k].text });
+              else { roundText += parts[k].text; send({ delta: parts[k].text }); }
+            }
+          }
+        } catch (e) {}
+      }
+    }
+    produced += roundText;
+
+    // continue when the model hit its output limit, or (code view) stopped with an unfinished code block
+    var cutOff = finish === 'MAX_TOKENS';
+    var openFence = !!system && ((produced.match(/```/g) || []).length % 2 === 1);
+    if (!roundText || !(cutOff || openFence)) break;
   }
   var srcMd = search ? sourcesMd(webSources) : '';
   if (srcMd) send({ delta: srcMd });
