@@ -320,8 +320,20 @@ export default async function handler(req, res) {
   if (model.startsWith('pplx:')) {
     var pplxModel = model.slice(5); // e.g. "sonar", "openai/gpt-4.1", "__preset__fast"
 
-    var inputArr = messages.map(toPerplexityMsg);
-    var lastInput = extractText((messages[messages.length - 1] || {}).content);
+    // code view sends its own instructions. They are put in front of the first user message
+    // (the separate "instructions" field made some models answer nothing)
+    var pplxMessages = messages;
+    var pplxSys = (typeof body.system === 'string' && body.system.trim()) ? body.system.slice(0, 6000) : '';
+    if (pplxSys && messages.length && messages[0].role !== 'assistant') {
+      var intro = 'Follow these instructions for the whole conversation:\n' + pplxSys + '\n\n---\nUser request:\n';
+      var first = messages[0];
+      var firstNew = Array.isArray(first.content)
+        ? { role: first.role, content: [{ type: 'text', text: intro }].concat(first.content) }
+        : { role: first.role, content: intro + String(first.content || '') };
+      pplxMessages = [firstNew].concat(messages.slice(1));
+    }
+    var inputArr = pplxMessages.map(toPerplexityMsg);
+    var lastInput = extractText((pplxMessages[pplxMessages.length - 1] || {}).content);
 
     // only the headers the official docs require. The old fake browser headers
     // (User-Agent/Origin/Referer/sec-*) were removed; see git history to restore.
@@ -347,9 +359,6 @@ export default async function handler(req, res) {
         pplxBody = { model: pplxModel, input: inputArr, stream: true };
         if (tools) pplxBody.tools = tools;
       }
-
-      // code view: its own instructions (language, output format, quality rules)
-      if (typeof body.system === 'string' && body.system.trim()) pplxBody.instructions = body.system.slice(0, 6000);
 
       var pRes = await fetch('https://api.perplexity.ai/v1/agent', {
         method: 'POST',
