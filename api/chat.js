@@ -323,7 +323,7 @@ export default async function handler(req, res) {
     // code view sends its own instructions. They are put in front of the first user message
     // (the separate "instructions" field made some models answer nothing)
     var pplxMessages = messages;
-    var pplxSys = (typeof body.system === 'string' && body.system.trim()) ? body.system.slice(0, 6000) : '';
+    var pplxSys = (typeof body.systemShort === 'string' && body.systemShort.trim()) ? body.systemShort.slice(0, 1500) : ((typeof body.system === 'string' && body.system.trim()) ? body.system.slice(0, 1500) : '');
     if (pplxSys && messages.length && messages[0].role !== 'assistant') {
       var intro = 'Follow these instructions for the whole conversation:\n' + pplxSys + '\n\n---\nUser request:\n';
       var first = messages[0];
@@ -343,6 +343,7 @@ export default async function handler(req, res) {
       'Accept': 'text/event-stream'
     };
 
+    var stage = '', stalled = false, stallTimer = null;
     try {
       // build request body
       var pplxBody;
@@ -353,25 +354,35 @@ export default async function handler(req, res) {
         pplxBody = { preset: preset, input: inputArr, stream: true };
         if (tools) pplxBody.tools = tools;
       } else if (pplxModel.startsWith('anthropic/')) {
-        pplxBody = { model: pplxModel, input: inputArr, stream: true, max_output_tokens: 8192 };
+        pplxBody = { model: pplxModel, input: inputArr, stream: true, max_output_tokens: (typeof body.system === 'string' && body.system) ? 32000 : 8192 };
         if (tools) pplxBody.tools = tools;
       } else {
         pplxBody = { model: pplxModel, input: inputArr, stream: true };
         if (tools) pplxBody.tools = tools;
       }
 
+      
+      stage = 'waiting for response headers';
+      var t0 = Date.now();
+      var ac = new AbortController();
+      stallTimer = setTimeout(function () { stalled = true; ac.abort(); }, 90000);
+      function bump() { clearTimeout(stallTimer); stallTimer = setTimeout(function () { stalled = true; ac.abort(); }, 90000); }
       var pRes = await fetch('https://api.perplexity.ai/v1/agent', {
         method: 'POST',
         headers: chromeH,
-        body: JSON.stringify(pplxBody)
+        body: JSON.stringify(pplxBody),
+        signal: ac.signal
       });
+      stage = 'headers received (' + pRes.status + ') after ' + Math.round((Date.now() - t0) / 1000) + 's, waiting for events';
+      bump();
 
       // fallback: if structured input failed, try plain string (no images in this path)
       if (!pRes.ok && pRes.status === 400) {
         var fb = Object.assign({}, pplxBody, { input: lastInput });
         pRes = await fetch('https://api.perplexity.ai/v1/agent', {
-          method: 'POST', headers: chromeH, body: JSON.stringify(fb)
+          method: 'POST', headers: chromeH, body: JSON.stringify(fb), signal: ac.signal
         });
+        bump();
       }
 
       if (!pRes.ok) {
@@ -399,6 +410,8 @@ export default async function handler(req, res) {
       while (true) {
         var chunk = await reader.read();
         if (chunk.done) break;
+        bump();
+        stage = 'streaming';
         buf += dec.decode(chunk.value, { stream: true });
         var lines = buf.split('\n');
         buf = lines.pop() || '';
@@ -426,6 +439,7 @@ export default async function handler(req, res) {
           } catch (e) {}
         }
       }
+      clearTimeout(stallTimer);
       if (pplxFail) { send({ error: 'Perplexity: ' + pplxFail }); res.end(); return; }
       if (!gotText) {
         send({ error: 'Perplexity پاسخی نداد (' + pplxModel + '). رویدادهای دریافتی: ' + (Object.keys(seenTypes).join(', ') || 'هیچ') });
@@ -436,7 +450,11 @@ export default async function handler(req, res) {
       res.end();
       return;
     } catch (e) {
-      send({ error: 'Perplexity: ' + (e && e.message ? e.message : 'خطای ناشناخته') });
+      try { clearTimeout(stallTimer); } catch (x) {}
+      console.error('pplx error', pplxModel, stage, e && e.message);
+      send({ error: stalled
+        ? 'Perplexity بعد از ۹۰ ثانیه هیچ داده‌ای نفرستاد (مدل ' + pplxModel + '، مرحله: ' + stage + '). مدل دیگه‌ای انتخاب کن.'
+        : 'Perplexity: ' + (e && e.message ? e.message : 'خطای ناشناخته') });
       res.end();
       return;
     }
