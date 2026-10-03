@@ -49,6 +49,27 @@ body {
   overflow: hidden;
 }
 
+
+/* ===== ACCESS GATE ===== */
+#gate{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:radial-gradient(circle at 50% 30%, var(--green-light), #f8fafc 70%);font-family:'Vazirmatn',sans-serif}
+#gate[hidden]{display:none}
+#gate .gcard{width:100%;max-width:380px;background:var(--white);border:1px solid var(--green-border);border-radius:var(--radius);
+  box-shadow:var(--shadow-md);padding:30px 26px;text-align:center}
+#gate img{width:64px;height:64px;object-fit:contain;margin-bottom:10px}
+#gate h2{font-size:1.15rem;color:var(--green-dark);margin-bottom:6px}
+#gate p{font-size:.85rem;color:var(--gray-600);margin-bottom:18px;line-height:1.7}
+#gate input{width:100%;padding:12px 14px;border:1.5px solid var(--green-border);border-radius:var(--radius-sm);font:inherit;font-size:1rem;
+  text-align:center;letter-spacing:.15em;direction:ltr;background:var(--green-pale);color:var(--gray-800);outline:none}
+#gate input:focus{border-color:var(--green-main);box-shadow:0 0 0 3px rgba(34,197,94,.18)}
+#gate button{width:100%;margin-top:12px;padding:12px;border:0;border-radius:var(--radius-sm);background:var(--green-main);color:#fff;
+  font:inherit;font-size:1rem;font-weight:600;cursor:pointer;transition:background .15s}
+#gate button:hover{background:var(--green-dark)}
+#gate button:disabled{opacity:.6;cursor:default}
+#gate .gerr{min-height:1.3em;margin-top:10px;font-size:.82rem;color:#dc2626}
+#gate.shake .gcard{animation:gshake .35s}
+@keyframes gshake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
 /* ===== HEADER ===== */
 header {
   background: var(--white);
@@ -867,6 +888,70 @@ body.view-code #codeView { display: flex; animation: cvIn 0.35s cubic-bezier(0.2
 <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.12.0/highlight.min.js"></script>
 </head>
 <body>
+<div id="gate">
+  <form class="gcard" id="gateForm" autocomplete="off">
+    <img src="/logo.png" alt="" onerror="this.style.display='none'">
+    <h2>ورود به دستیار هوشمند</h2>
+    <p id="gateMsg">برای ورود، کد دسترسی را وارد کن.</p>
+    <input id="gateCode" type="password" inputmode="text" placeholder="••••••" autocomplete="off" autofocus>
+    <button type="submit" id="gateBtn">ورود</button>
+    <div class="gerr" id="gateErr"></div>
+  </form>
+</div>
+<script>
+// ===== access gate =====
+(function () {
+  var gate = document.getElementById('gate'), form = document.getElementById('gateForm');
+  var codeEl = document.getElementById('gateCode'), errEl = document.getElementById('gateErr');
+  var msgEl = document.getElementById('gateMsg'), btn = document.getElementById('gateBtn');
+  function show(note) {
+    gate.hidden = false;
+    msgEl.textContent = note || 'برای ورود، کد دسترسی را وارد کن.';
+    setTimeout(function () { try { codeEl.focus(); } catch (e) {} }, 50);
+  }
+  function hide() { gate.hidden = true; errEl.textContent = ''; codeEl.value = ''; }
+
+  var realFetch = window.fetch.bind(window);
+  // any 401 from the app's own API puts the gate back (session expired / code changed)
+  window.fetch = function (input, init) {
+    return realFetch(input, init).then(function (r) {
+      try {
+        var u = typeof input === 'string' ? input : (input && input.url) || '';
+        if (r.status === 401 && u.indexOf('/api/') !== -1 && u.indexOf('/api/auth') === -1) show('نشست تمام شده. دوباره کد را وارد کن.');
+      } catch (e) {}
+      return r;
+    });
+  };
+
+  realFetch('/api/auth', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+    if (j && j.ok) hide();
+    else if (j && j.configured === false) show('کد دسترسی هنوز روی سرور تنظیم نشده (ACCESS_CODE در Vercel).');
+    else show();
+  }).catch(function () { show(); });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = codeEl.value;
+    if (!v) return;
+    btn.disabled = true; errEl.textContent = '';
+    realFetch('/api/auth', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: v })
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { s: r.status, j: j }; }); })
+      .then(function (o) {
+        btn.disabled = false;
+        if (o.j && o.j.ok) { hide(); return; }
+        if (o.s === 429) errEl.textContent = 'تعداد تلاش زیاد بود. حدود ' + Math.ceil((o.j.wait || 600) / 60) + ' دقیقه صبر کن.';
+        else if (o.s === 503) errEl.textContent = 'کد دسترسی روی سرور تنظیم نشده.';
+        else errEl.textContent = 'کد اشتباه است.';
+        codeEl.value = ''; gate.classList.remove('shake'); void gate.offsetWidth; gate.classList.add('shake');
+      }).catch(function () { btn.disabled = false; errEl.textContent = 'ارتباط با سرور برقرار نشد.'; });
+  });
+
+  window.__logout = function () { realFetch('/api/auth', { method: 'DELETE', credentials: 'same-origin' }).then(function () { show(); }); };
+})();
+</script>
 
 <header>
   <img src="/logo.png" alt="logo" onerror="this.style.display='none'">
