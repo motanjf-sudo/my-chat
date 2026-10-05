@@ -311,6 +311,9 @@ export default async function handler(req, res) {
   var model = body.model || 'deepseek-flash';
   var messages = body.messages || [];
   var search = body.search || false;
+  // custom assistants send their own instructions as `persona`; every provider path reads it through body.system
+  var personaText = (typeof body.persona === 'string') ? body.persona.trim().slice(0, 4000) : '';
+  if (personaText && !(typeof body.system === 'string' && body.system.trim())) body.system = personaText;
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache');
@@ -325,7 +328,7 @@ export default async function handler(req, res) {
     // code view sends its own instructions. They are put in front of the first user message
     // (the separate "instructions" field made some models answer nothing)
     var pplxMessages = messages;
-    var pplxSys = (typeof body.systemShort === 'string' && body.systemShort.trim()) ? body.systemShort.slice(0, 1500) : ((typeof body.system === 'string' && body.system.trim()) ? body.system.slice(0, 1500) : '');
+    var pplxSys = (typeof body.systemShort === 'string' && body.systemShort.trim()) ? body.systemShort.slice(0, 1500) : ((typeof body.system === 'string' && body.system.trim()) ? body.system.slice(0, 4000) : '');
     if (pplxSys && messages.length && messages[0].role !== 'assistant') {
       var intro = 'Follow these instructions for the whole conversation:\n' + pplxSys + '\n\n---\nUser request:\n';
       var first = messages[0];
@@ -563,7 +566,7 @@ export default async function handler(req, res) {
   if (model.startsWith('sonar:')) {
     try {
       var sonarRes = await streamOpenAI('https://api.perplexity.ai/v1/sonar', PERPLEXITY_API_KEY,
-        { model: model.slice(6), messages: messages.map(toOpenAIMsg), stream: true }, 'Sonar', send);
+        { model: model.slice(6), messages: ((typeof body.system === 'string' && body.system.trim()) ? [{ role: 'system', content: body.system.slice(0, 4000) }] : []).concat(messages.map(toOpenAIMsg)), stream: true }, 'Sonar', send);
       if (sonarRes) {
         var sMd = sourcesMd(sonarRes.sources);
         if (sMd) send({ delta: sMd });
