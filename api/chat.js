@@ -348,7 +348,7 @@ export default async function handler(req, res) {
       'Accept': 'text/event-stream'
     };
 
-    var stage = '', stalled = false, stallTimer = null;
+    var stage = '', stalled = false, stallTimer = null, hb = null, gotText = false;
     try {
       // build request body
       var pplxBody;
@@ -373,8 +373,15 @@ export default async function handler(req, res) {
       stage = 'waiting for response headers';
       var t0 = Date.now();
       var ac = new AbortController();
-      stallTimer = setTimeout(function () { stalled = true; ac.abort(); }, 90000);
-      function bump() { clearTimeout(stallTimer); stallTimer = setTimeout(function () { stalled = true; ac.abort(); }, 90000); }
+      // big prompts make the model think silently for minutes: wait up to 240 s without data (the function limit is 300 s)
+      var STALL_MS = 240000;
+      stallTimer = setTimeout(function () { stalled = true; ac.abort(); }, STALL_MS);
+      function bump() { clearTimeout(stallTimer); stallTimer = setTimeout(function () { stalled = true; ac.abort(); }, STALL_MS); }
+      // while nothing is written yet, tell the page every few seconds that the model is still working
+      hb = setInterval(function () {
+        if (gotText || res.writableEnded || res.destroyed) { clearInterval(hb); return; }
+        try { send({ thinking: '.' }); } catch (e) { clearInterval(hb); }
+      }, 6000);
       var pRes = await fetch('https://api.perplexity.ai/v1/agent', {
         method: 'POST',
         headers: chromeH,
@@ -411,7 +418,7 @@ export default async function handler(req, res) {
       var reader = pRes.body.getReader();
       var dec = new TextDecoder();
       var buf = '';
-      var gotText = false, pplxFail = '', seenTypes = {};
+      var pplxFail = '', seenTypes = {};
       // text of a finished response (used when no streaming deltas arrived)
       function finalText(resp) {
         var out = '';
@@ -455,7 +462,7 @@ export default async function handler(req, res) {
           } catch (e) {}
         }
       }
-      clearTimeout(stallTimer);
+      clearTimeout(stallTimer); clearInterval(hb);
       if (pplxFail) { send({ error: 'Perplexity: ' + pplxFail }); res.end(); return; }
       if (!gotText) {
         send({ error: 'Perplexity پاسخی نداد (' + pplxModel + '). رویدادهای دریافتی: ' + (Object.keys(seenTypes).join(', ') || 'هیچ') });
@@ -466,10 +473,10 @@ export default async function handler(req, res) {
       res.end();
       return;
     } catch (e) {
-      try { clearTimeout(stallTimer); } catch (x) {}
+      try { clearTimeout(stallTimer); clearInterval(hb); } catch (x) {}
       console.error('pplx error', pplxModel, stage, e && e.message);
       send({ error: stalled
-        ? 'Perplexity بعد از ۹۰ ثانیه هیچ داده‌ای نفرستاد (مدل ' + pplxModel + '، مرحله: ' + stage + '). مدل دیگه‌ای انتخاب کن.'
+        ? 'Perplexity بعد از ۴ دقیقه هیچ داده‌ای نفرستاد (مدل ' + pplxModel + '، مرحله: ' + stage + '). مدل دیگه‌ای انتخاب کن.'
         : 'Perplexity: ' + (e && e.message ? e.message : 'خطای ناشناخته') });
       res.end();
       return;
