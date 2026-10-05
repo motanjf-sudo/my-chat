@@ -2617,7 +2617,7 @@ async function streamFromHistory() {
     setStreaming(true);
     const lang = LANG(langSel.value), model = modelSel.value;
     const bot = createBot();
-    let raw = '', pending = '', rafId = 0, ver = null, finished = false, stopped = false;
+    let raw = '', pending = '', rafId = 0, ver = null, finished = false, stopped = false, failed = false;
 
     function render(final) {
       const p = parseReply(raw);
@@ -2649,7 +2649,7 @@ async function streamFromHistory() {
       bot.dots.remove();
       if (bot.think) { bot.think.remove(); bot.think = null; }
       render(true);
-      if (!raw.trim() && !note) errorBubble(bot, 'مدل پاسخی نداد. دوباره امتحان کن یا مدل دیگه‌ای انتخاب کن.');
+      if (!raw.trim() && !note && !failed) errorBubble(bot, 'مدل پاسخی نداد. دوباره امتحان کن یا مدل دیگه‌ای انتخاب کن.');
       if (note) {
         const n = document.createElement('div');
         n.style.cssText = 'color:var(--gray-400);font-size:.75rem;margin-top:6px';
@@ -2691,7 +2691,7 @@ async function streamFromHistory() {
           try { evt = JSON.parse(data); } catch (e) { continue; }
           if (evt.thinking && !raw && !pending) { if (!bot.think) { bot.think = document.createElement('div'); bot.think.className = 'cv-thinking'; bot.think.textContent = 'در حال فکر کردن…'; bot.msg.appendChild(bot.think); scrollList(); } }
           else if (evt.delta) { pending += evt.delta; if (bot.think) { bot.think.remove(); bot.think = null; } schedule(); }
-          else if (evt.error) { finish(); errorBubble(bot, 'خطا: ' + evt.error); return; }
+          else if (evt.error) { failed = true; finish(); errorBubble(bot, 'خطا: ' + evt.error); return; }
           else if (evt.done) { finish(); }
         }
       }
