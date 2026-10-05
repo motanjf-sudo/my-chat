@@ -607,6 +607,223 @@ body.mode-audio .audio-only { display: inline-block; }
 }
 .gen-dl:hover { background: var(--green-pale); }
 
+/* ===== ASSISTANTS ===== */
+#asBtn {
+  background: var(--green-pale);
+  border: 1px solid var(--green-border);
+  color: var(--green-main);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+#asBtn:hover { background: var(--green-main); border-color: var(--green-main); color: var(--white); }
+
+/* make room in the header for the extra button on small screens */
+@media (max-width: 640px) {
+  header { padding: 8px 10px; gap: 6px; }
+  header h1, header img, #mLb { display: none; }
+  #mSel { flex: 1; min-width: 0; max-width: none; padding: 6px 6px; }
+  #asBtn, #codeBtn, #clearBtn { padding: 6px 8px; font-size: .74rem; }
+  #clearBtn .hide-sm { display: none; }
+}
+
+#asView { display: none; flex: 1; min-height: 0; flex-direction: column; background: #f8fafc; position: relative; overflow: hidden; }
+body.view-as > header,
+body.view-as > #tbar,
+body.view-as > #asBar,
+body.view-as > #chat,
+body.view-as > footer,
+body.view-as > #codeView { display: none; }
+body.view-as #asView { display: flex; animation: asViewIn .38s cubic-bezier(.2,.8,.2,1); }
+@keyframes asViewIn { from { opacity: 0; transform: translateY(12px) scale(.995); } to { opacity: 1; transform: none; } }
+
+/* soft animated background blobs */
+.as-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.as-bg i { position: absolute; border-radius: 50%; filter: blur(60px); opacity: .5; animation: asBlob 18s ease-in-out infinite; }
+.as-bg i:nth-child(1) { width: 320px; height: 320px; background: #bbf7d0; top: -90px; right: -60px; }
+.as-bg i:nth-child(2) { width: 280px; height: 280px; background: #d9f99d; bottom: -80px; left: -50px; animation-delay: -6s; }
+.as-bg i:nth-child(3) { width: 220px; height: 220px; background: #a7f3d0; top: 40%; left: 40%; animation-delay: -11s; opacity: .35; }
+@keyframes asBlob { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(30px,-24px) scale(1.12); } 66% { transform: translate(-26px,20px) scale(.92); } }
+
+.as-top {
+  position: relative; z-index: 2; background: rgba(255,255,255,.85); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--gray-200); padding: 10px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0;
+}
+.as-top h2 { font-size: 1rem; color: var(--gray-800); flex: 1; min-width: 120px; display: flex; align-items: center; gap: 8px; }
+.as-top h2 .as-spark { display: inline-block; animation: asWiggle 3.2s ease-in-out infinite; transform-origin: 50% 80%; }
+@keyframes asWiggle { 0%,86%,100% { transform: rotate(0); } 90% { transform: rotate(-14deg) scale(1.15); } 95% { transform: rotate(10deg) scale(1.1); } }
+.as-btn {
+  font-family: 'Vazirmatn', sans-serif; font-size: .82rem; font-weight: 600; cursor: pointer; border-radius: 9px; padding: 7px 14px;
+  border: 1px solid var(--gray-200); background: var(--white); color: var(--gray-600); transition: all .18s; white-space: nowrap;
+}
+.as-btn:hover { border-color: var(--green-border); color: var(--green-main); background: var(--green-pale); transform: translateY(-1px); }
+.as-btn:active { transform: translateY(0) scale(.97); }
+.as-btn.primary { background: linear-gradient(135deg, var(--green-main), var(--green-mid)); border-color: transparent; color: #fff; box-shadow: 0 4px 12px rgba(22,163,74,.28); }
+.as-btn.primary:hover { filter: brightness(1.06); box-shadow: 0 6px 16px rgba(22,163,74,.36); color: #fff; background: linear-gradient(135deg, var(--green-main), var(--green-mid)); }
+.as-btn.danger { color: #dc2626; border-color: #fecaca; }
+.as-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+.as-btn:disabled { opacity: .55; cursor: default; transform: none !important; }
+
+.as-body { position: relative; z-index: 1; flex: 1; min-height: 0; overflow-y: auto; padding: 20px; scroll-behavior: smooth; }
+.as-wrap { max-width: 1100px; margin: 0 auto; }
+
+.as-hero { text-align: center; padding: 6px 0 18px; animation: asRise .5s .05s both cubic-bezier(.2,.8,.2,1); }
+.as-hero h3 { font-size: 1.35rem; color: var(--green-dark); margin-bottom: 6px; }
+.as-hero p { color: var(--gray-600); font-size: .88rem; line-height: 1.9; max-width: 560px; margin: 0 auto; }
+@keyframes asRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+.as-search { position: relative; max-width: 460px; margin: 0 auto 18px; animation: asRise .5s .12s both cubic-bezier(.2,.8,.2,1); }
+.as-search input {
+  width: 100%; padding: 11px 42px 11px 14px; font: inherit; font-size: .9rem; border-radius: 12px; border: 1.5px solid var(--gray-200);
+  background: var(--white); color: var(--gray-800); outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.as-search input:focus { border-color: var(--green-main); box-shadow: 0 0 0 3px rgba(34,197,94,.16); }
+.as-search span { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); opacity: .55; pointer-events: none; }
+.as-count { text-align: center; font-size: .78rem; color: var(--gray-400); margin: -8px 0 14px; min-height: 1.1em; }
+
+.as-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.as-card {
+  --h: 140;
+  position: relative; background: var(--white); border: 1px solid var(--gray-200); border-radius: 18px; padding: 16px 16px 14px;
+  display: flex; flex-direction: column; gap: 10px; overflow: hidden; cursor: pointer;
+  box-shadow: var(--shadow-sm); opacity: 0; animation: asCardIn .55s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(var(--i, 0) * 55ms);
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s, border-color .25s;
+}
+.as-card::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, hsl(var(--h) 70% 52%), hsl(calc(var(--h) + 40) 75% 58%));
+}
+.as-card::after {
+  content: ''; position: absolute; width: 160px; height: 160px; border-radius: 50%; top: -70px; left: -50px; background: hsl(var(--h) 80% 90% / .55);
+  filter: blur(28px); transition: transform .5s; pointer-events: none;
+}
+.as-card:hover { transform: translateY(-5px); box-shadow: 0 14px 30px rgba(20,83,45,.13); border-color: hsl(var(--h) 55% 78%); }
+.as-card:hover::after { transform: translate(26px, 18px) scale(1.2); }
+@keyframes asCardIn { from { opacity: 0; transform: translateY(22px) scale(.96); } to { opacity: 1; transform: none; } }
+.as-card-head { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+.as-av {
+  width: 50px; height: 50px; border-radius: 16px; display: grid; place-items: center; font-size: 1.65rem; flex-shrink: 0;
+  background: linear-gradient(145deg, hsl(var(--h) 85% 93%), hsl(calc(var(--h) + 30) 80% 86%)); border: 1px solid hsl(var(--h) 60% 82%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 4px 10px hsl(var(--h) 60% 50% / .15); transition: transform .35s cubic-bezier(.3,1.6,.5,1);
+}
+.as-card:hover .as-av { transform: rotate(-8deg) scale(1.1); }
+.as-name { font-weight: 700; color: var(--gray-800); font-size: .98rem; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.as-meta { font-size: .73rem; color: var(--gray-600); display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; direction: ltr; unicode-bidi: plaintext; }
+.as-meta b { font-weight: 600; background: var(--green-pale); color: var(--green-main); border: 1px solid var(--green-border); border-radius: 20px; padding: 1px 8px; }
+.as-card-name { min-width: 0; flex: 1; }
+.as-snip { font-size: .8rem; line-height: 1.85; color: var(--gray-600); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; position: relative; z-index: 1; min-height: 4.4em; }
+.as-actions { display: flex; gap: 8px; position: relative; z-index: 1; margin-top: auto; }
+.as-actions .as-btn { flex: 1; padding: 8px 10px; }
+
+.as-skel { height: 190px; border-radius: 18px; border: 1px solid var(--gray-200); background: linear-gradient(100deg, #fff 30%, #eefbf2 50%, #fff 70%); background-size: 220% 100%; animation: asShimmer 1.3s linear infinite; }
+@keyframes asShimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+.as-empty { text-align: center; padding: 40px 16px; color: var(--gray-600); animation: asRise .5s both; grid-column: 1 / -1; }
+.as-empty .as-big { font-size: 3.2rem; display: block; margin-bottom: 8px; animation: asFloat 3.4s ease-in-out infinite; }
+@keyframes asFloat { 50% { transform: translateY(-9px); } }
+.as-empty b { color: var(--gray-800); display: block; margin-bottom: 4px; font-size: 1.02rem; }
+.as-empty p { font-size: .84rem; line-height: 1.9; max-width: 480px; margin: 0 auto 14px; }
+.as-steps { text-align: right; background: var(--white); border: 1px solid var(--green-border); border-radius: 14px; padding: 14px 18px; max-width: 470px; margin: 0 auto; font-size: .82rem; line-height: 2.1; }
+.as-steps code { background: var(--green-pale); border-radius: 5px; padding: 0 6px; direction: ltr; unicode-bidi: embed; }
+
+/* ----- modal ----- */
+#asModal { position: fixed; inset: 0; z-index: 9000; display: none; align-items: center; justify-content: center; padding: 16px; }
+#asModal.on { display: flex; }
+.as-back { position: absolute; inset: 0; background: rgba(15,23,42,.45); backdrop-filter: blur(5px); animation: asFade .25s both; }
+@keyframes asFade { from { opacity: 0; } to { opacity: 1; } }
+.as-dlg {
+  position: relative; width: 100%; max-width: 560px; max-height: 94vh; max-height: 94svh; overflow-y: auto; background: var(--white); border-radius: 22px;
+  border: 1px solid var(--green-border); box-shadow: 0 30px 70px rgba(15,23,42,.28); padding: 22px 22px 18px; animation: asPop .38s cubic-bezier(.2,1.2,.4,1) both;
+}
+@keyframes asPop { from { opacity: 0; transform: translateY(26px) scale(.93); } to { opacity: 1; transform: none; } }
+.as-dlg.leaving { animation: asPopOut .2s ease forwards; }
+.as-back.leaving { animation: asFadeOut .2s ease forwards; }
+@keyframes asPopOut { to { opacity: 0; transform: translateY(14px) scale(.96); } }
+@keyframes asFadeOut { to { opacity: 0; } }
+.as-dlg.shake { animation: asShake .4s; }
+@keyframes asShake { 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
+.as-dlg h4 { font-size: 1.08rem; color: var(--green-dark); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.as-x { margin-right: auto; border: 0; background: var(--gray-100); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: .9rem; color: var(--gray-600); transition: all .15s; }
+.as-x:hover { background: #fee2e2; color: #dc2626; transform: rotate(90deg); }
+.as-field { margin-bottom: 14px; }
+.as-field > label { display: flex; justify-content: space-between; font-size: .8rem; font-weight: 600; color: var(--gray-800); margin-bottom: 6px; }
+.as-field > label small { font-weight: 400; color: var(--gray-400); }
+.as-field input, .as-field select, .as-field textarea {
+  width: 100%; font: inherit; font-size: .9rem; padding: 10px 12px; border-radius: 11px; border: 1.5px solid var(--gray-200); background: var(--gray-50);
+  color: var(--gray-800); outline: none; transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.as-field textarea { resize: vertical; min-height: 150px; line-height: 1.9; }
+.as-field input:focus, .as-field select:focus, .as-field textarea:focus { border-color: var(--green-main); background: var(--white); box-shadow: 0 0 0 3px rgba(34,197,94,.16); }
+.as-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.as-emojis { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+.as-emo {
+  aspect-ratio: 1; border: 1.5px solid transparent; background: var(--gray-50); border-radius: 11px; font-size: 1.25rem; cursor: pointer;
+  display: grid; place-items: center; transition: transform .2s cubic-bezier(.3,1.6,.5,1), background .15s, border-color .15s; padding: 0;
+}
+.as-emo:hover { transform: scale(1.15); background: var(--green-pale); }
+.as-emo.on { border-color: var(--green-main); background: var(--green-light); transform: scale(1.12); animation: asBounce .4s; }
+@keyframes asBounce { 40% { transform: scale(1.3); } }
+.as-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.as-chip { font-family: inherit; font-size: .74rem; padding: 4px 11px; border-radius: 20px; border: 1px solid var(--green-border); background: var(--green-pale); color: var(--green-main); cursor: pointer; transition: all .15s; }
+.as-chip:hover { background: var(--green-main); color: #fff; transform: translateY(-1px); }
+.as-pw { position: relative; }
+.as-pw input { padding-left: 42px; direction: ltr; text-align: left; }
+.as-eye { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); border: 0; background: none; cursor: pointer; font-size: 1rem; padding: 6px; opacity: .6; }
+.as-eye:hover { opacity: 1; }
+.as-hint { font-size: .72rem; color: var(--gray-400); margin-top: 5px; line-height: 1.7; }
+.as-err { min-height: 1.3em; font-size: .82rem; color: #dc2626; margin: -4px 0 8px; }
+.as-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.as-foot .as-spacer { flex: 1; }
+.as-bar-count.warn { color: #d97706; }
+.as-bar-count.max { color: #dc2626; }
+
+/* ----- toasts ----- */
+#asToasts { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9500; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+.as-toast { background: var(--gray-800); color: #fff; padding: 10px 18px; border-radius: 12px; font-size: .84rem; box-shadow: 0 10px 28px rgba(0,0,0,.25); animation: asToast .35s cubic-bezier(.2,1.2,.4,1) both; }
+.as-toast.ok { background: var(--green-dark); }
+.as-toast.bad { background: #b91c1c; }
+.as-toast.out { animation: asToastOut .25s ease forwards; }
+@keyframes asToast { from { opacity: 0; transform: translateY(20px) scale(.9); } to { opacity: 1; transform: none; } }
+@keyframes asToastOut { to { opacity: 0; transform: translateY(10px) scale(.95); } }
+
+/* ----- active assistant bar in the chat ----- */
+#asBar { display: none; align-items: center; gap: 12px; padding: 8px 20px; background: linear-gradient(90deg, var(--green-pale), #fff); border-bottom: 1px solid var(--green-border); flex-shrink: 0; }
+body.has-assistant #asBar { display: flex; animation: asBarIn .45s cubic-bezier(.2,.8,.2,1); }
+body.mode-image #asBar, body.mode-audio #asBar { display: none; }
+@keyframes asBarIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+#asBar .as-av { width: 38px; height: 38px; border-radius: 12px; font-size: 1.3rem; }
+#asBar .as-bar-t { flex: 1; min-width: 0; line-height: 1.5; }
+#asBar .as-bar-t b { display: block; font-size: .88rem; color: var(--green-dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#asBar .as-bar-t small { font-size: .72rem; color: var(--gray-600); direction: ltr; text-align: right; display: block; }
+#asBar .as-btn { padding: 6px 12px; font-size: .76rem; }
+.as-welcome { margin: 18px auto 6px; text-align: center; max-width: 440px; animation: asRise .6s both cubic-bezier(.2,.8,.2,1); }
+.as-welcome .as-av { width: 74px; height: 74px; font-size: 2.4rem; margin: 0 auto 10px; border-radius: 24px; animation: asFloat 3.6s ease-in-out infinite; }
+.as-welcome b { display: block; color: var(--green-dark); font-size: 1.05rem; }
+.as-welcome p { color: var(--gray-600); font-size: .82rem; margin-top: 4px; line-height: 1.9; }
+
+@media (max-width: 640px) {
+  .as-body { padding: 14px; }
+  .as-top { padding: 8px 12px; }
+  .as-hero h3 { font-size: 1.15rem; }
+  .as-grid { grid-template-columns: 1fr; }
+  #asModal { align-items: flex-end; padding: 0; }
+  .as-dlg { max-width: none; border-radius: 22px 22px 0 0; max-height: 92svh; padding: 18px 16px 16px; animation-name: asSheet; }
+  @keyframes asSheet { from { transform: translateY(100%); } to { transform: none; } }
+  .as-row2 { grid-template-columns: 1fr; }
+  .as-emojis { grid-template-columns: repeat(7, 1fr); }
+  #asBar { padding: 8px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .as-card, .as-hero, .as-search, .as-empty, #asView, .as-dlg, .as-back, .as-toast, #asBar, .as-welcome { animation-duration: .01s !important; animation-delay: 0s !important; }
+  .as-bg i, .as-spark, .as-big, .as-welcome .as-av { animation: none !important; }
+  .as-card, .as-av { transition: none !important; }
+}
+.as-grid.still .as-card { animation: none; opacity: 1; }
+
 /* ===== CODE VIEW ===== */
 #codeBtn {
   background: var(--green-pale);
@@ -991,8 +1208,9 @@ body.view-code #codeView { display: flex; animation: cvIn 0.35s cubic-bezier(0.2
       <option value="pplx:perplexity/glm-5.3-flash">GLM 5.3 Flash</option>
     </optgroup>
   </select>
+  <button id="asBtn" type="button">🤖 دستیارها</button>
   <button id="codeBtn" type="button">&lt;/&gt; Code</button>
-  <button id="clearBtn">🗑️ پاک</button>
+  <button id="clearBtn" aria-label="پاک کردن گفتگو">🗑️<span class="hide-sm"> پاک</span></button>
 </header>
 
 <div id="tbar">
@@ -1020,6 +1238,12 @@ body.view-code #codeView { display: flex; animation: cvIn 0.35s cubic-bezier(0.2
     <span class="tog-slider"></span>
     سرچ 🔍
   </label>
+</div>
+
+<div id="asBar">
+  <span class="as-av" id="asBarAv">🤖</span>
+  <div class="as-bar-t"><b id="asBarName">دستیار</b><small id="asBarModel"></small></div>
+  <button type="button" class="as-btn" id="asBarExit">خروج از دستیار ✕</button>
 </div>
 
 <div id="chat"></div>
@@ -1090,6 +1314,73 @@ body.view-code #codeView { display: flex; animation: cvIn 0.35s cubic-bezier(0.2
   </div>
 </div>
 
+<div id="asView">
+  <div class="as-bg"><i></i><i></i><i></i></div>
+  <div class="as-top">
+    <button type="button" class="as-btn" id="asBack">→ چت</button>
+    <h2><span class="as-spark">✨</span> دستیارها</h2>
+    <button type="button" class="as-btn primary" id="asNew">＋ ساخت دستیار</button>
+  </div>
+  <div class="as-body" id="asBody">
+    <div class="as-wrap">
+      <div class="as-hero">
+        <h3>دستیار خودت رو بساز</h3>
+        <p>مدل و شرکتش رو انتخاب کن، بهش بگو چطور رفتار کنه، و هر کسی می‌تونه باهاش گفتگو کنه. دستیارها بین همه مشترکن.</p>
+      </div>
+      <div class="as-search"><input id="asSearch" type="search" placeholder="جستجوی دستیار..." autocomplete="off" aria-label="جستجوی دستیار"><span>🔎</span></div>
+      <div class="as-count" id="asCount"></div>
+      <div class="as-grid" id="asGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div id="asModal" aria-hidden="true">
+  <div class="as-back" id="asBackdrop"></div>
+  <div class="as-dlg" id="asDlg" role="dialog" aria-modal="true" aria-labelledby="asDlgTitle">
+    <h4><span id="asDlgIco">🤖</span><span id="asDlgTitle">ساخت دستیار</span><button type="button" class="as-x" id="asX" aria-label="بستن">✕</button></h4>
+
+    <div class="as-field">
+      <label>آیکون</label>
+      <div class="as-emojis" id="asEmojis"></div>
+    </div>
+    <div class="as-field">
+      <label for="asName">اسم دستیار <small id="asNameCnt">0/40</small></label>
+      <input id="asName" maxlength="40" placeholder="مثلاً: معلم انگلیسی" autocomplete="off">
+    </div>
+    <div class="as-row2">
+      <div class="as-field">
+        <label for="asCompany">شرکت</label>
+        <select id="asCompany"></select>
+      </div>
+      <div class="as-field">
+        <label for="asModelSel">مدل</label>
+        <select id="asModelSel"></select>
+      </div>
+    </div>
+    <div class="as-field">
+      <label for="asInstr">دستورالعمل <small id="asInstrCnt" class="as-bar-count">0/4000</small></label>
+      <div class="as-chips" id="asChips"></div>
+      <textarea id="asInstr" maxlength="4000" placeholder="به دستیارت بگو کی هست و چطور جواب بده. مثلاً: «تو یه معلم صبور زبان انگلیسی هستی. جواب‌ها رو ساده بده و اشتباه‌های من رو مؤدبانه اصلاح کن.»"></textarea>
+    </div>
+    <div class="as-field">
+      <label for="asPw">رمز ویرایش <small id="asPwNote">برای تغییر و حذف بعدی لازم می‌شه</small></label>
+      <div class="as-pw">
+        <input id="asPw" type="password" maxlength="64" autocomplete="new-password" placeholder="حداقل ۴ حرف">
+        <button type="button" class="as-eye" id="asEye" aria-label="نمایش رمز">👁</button>
+      </div>
+      <div class="as-hint" id="asPwHint">این رمز رو یادت بمونه؛ فقط با اون می‌تونی دستیارت رو ویرایش یا حذف کنی.</div>
+    </div>
+    <div class="as-err" id="asErr" role="alert"></div>
+    <div class="as-foot">
+      <button type="button" class="as-btn primary" id="asSave">ذخیره</button>
+      <button type="button" class="as-btn" id="asCancel">انصراف</button>
+      <span class="as-spacer"></span>
+      <button type="button" class="as-btn danger" id="asDel" style="display:none">🗑 حذف</button>
+    </div>
+  </div>
+</div>
+<div id="asToasts" aria-live="polite"></div>
+
 
 <script>
 // ===== CONFIG =====
@@ -1104,6 +1395,7 @@ const fileInp = document.getElementById('fileInp');
 const attachRow = document.getElementById('attachRow');
 
 let history = [];
+let activeAssistant = null; // custom assistant chosen on the assistants page (null = normal chat)
 let isStreaming = false;
 let currentController = null;
 let pendingAttachments = []; // { type:'image'|'file', name, mimeType?, data?(base64), dataUrl?, text? }
@@ -1452,7 +1744,7 @@ function setStreamingUI(active) {
   sendBtn.classList.toggle('stop-mode', active);
   sendBtn.innerHTML = active ? STOP_ICON : SEND_ICON;
   attachBtn.disabled = active || mode !== 'chat';
-  mSel.disabled = active;
+  mSel.disabled = active || !!activeAssistant;
 }
 
 // ===== GENERATION MODES (image / audio) =====
@@ -1645,8 +1937,9 @@ async function streamFromHistory() {
   setStreamingUI(true);
   showTyping();
 
-  const model    = mSel.value;
+  const model    = activeAssistant ? activeAssistant.model : mSel.value;
   const search   = srTog.checked;
+  const persona  = activeAssistant ? activeAssistant.instruction : '';
 
   let rawContent = '';
   let botEl = null;
@@ -1684,7 +1977,7 @@ async function streamFromHistory() {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages: history, search }),
+      body: JSON.stringify(persona ? { model, messages: history, search, persona } : { model, messages: history, search }),
       signal: currentController.signal
     });
 
@@ -2424,6 +2717,356 @@ async function streamFromHistory() {
     renderEmpty();
   });
 
+  syncView();
+})();
+</script>
+<script>
+// ===== CUSTOM ASSISTANTS (shared, stored on the server) =====
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const COMPANIES = [
+    { id: 'deepseek', name: 'DeepSeek', models: [['deepseek-flash', 'DeepSeek V4.1'], ['deepseek-chat', 'DeepSeek V3']] },
+    { id: 'google', name: 'Google Gemini', models: [['gemini:gemini-3.8-flash', 'Gemini 3.8 Flash'], ['gemini:gemini-3.7-flash', 'Gemini 3.7 Flash'], ['gemini:gemini-3.1-pro-preview', 'Gemini 3.1 Pro']] },
+    { id: 'sonar', name: 'Perplexity Sonar', models: [['sonar:sonar', 'Sonar'], ['sonar:sonar-pro', 'Sonar Pro']] },
+    { id: 'anthropic', name: 'Anthropic Claude', models: [['pplx:anthropic/claude-sonnet-5-5', 'Claude Sonnet 5.5'], ['pplx:anthropic/claude-opus-5-5', 'Claude Opus 5.5'], ['pplx:anthropic/claude-haiku-4-5', 'Claude Haiku 4.5'], ['pplx:anthropic/claude-fable-5-1', 'Claude Fable 5.1']] },
+    { id: 'openai', name: 'OpenAI', models: [['pplx:openai/gpt-6.1-sol', 'GPT-6.1 Sol'], ['pplx:openai/gpt-6-luna', 'GPT-6 Luna'], ['pplx:openai/gpt-5.6-terra', 'GPT-5.6 Terra'], ['pplx:openai/gpt-5.5', 'GPT-5.5']] },
+    { id: 'xai', name: 'xAI', models: [['pplx:xai/grok-4.7', 'Grok 4.7']] },
+    { id: 'glm', name: 'GLM', models: [['pplx:perplexity/glm-5.3', 'GLM 5.3'], ['pplx:perplexity/glm-5.3-flash', 'GLM 5.3 Flash']] }
+  ];
+  const EMOJIS = ['🤖', '🧠', '🎓', '💻', '✍️', '🌍', '🎨', '🎵', '📚', '🔬', '⚖️', '💼', '🍳', '💪', '🧘', '🎮', '✈️', '🩺', '💡', '🐱'];
+  const TEMPLATES = [
+    ['معلم زبان', 'تو یک معلم صبور و مهربان زبان انگلیسی هستی. جواب‌ها را ساده و مرحله‌به‌مرحله بده، اشتباه‌های من را مؤدبانه اصلاح کن و با یک مثال کوتاه توضیح بده. همیشه به فارسی توضیح بده و مثال‌ها را انگلیسی بنویس.'],
+    ['برنامه‌نویس', 'تو یک مهندس نرم‌افزار ارشد هستی. کد تمیز، کامل و بدون باگ بنویس، قبل از کد یک توضیح کوتاه بده و بعد از کد بگو چطور اجرا می‌شود. اگر سؤال مبهم بود، یک سؤال کوتاه بپرس.'],
+    ['مترجم', 'تو یک مترجم حرفه‌ای فارسی و انگلیسی هستی. هر متنی که فرستادم را به زبان مقابل ترجمه کن؛ طبیعی و روان، نه کلمه‌به‌کلمه. فقط ترجمه را بنویس مگر اینکه توضیح بخواهم.'],
+    ['ویراستار', 'تو یک نویسنده و ویراستار خلاق هستی. به من کمک کن متن‌هایم جذاب‌تر، روان‌تر و بدون غلط شوند. اول نسخه‌ی بهتر را بده، بعد در یکی دو خط بگو چه چیزهایی را تغییر دادی.'],
+    ['مربی ورزش', 'تو یک مربی ورزش و تغذیه‌ی دلسوز هستی. برنامه‌ها را متناسب با سطح و هدف من بنویس، نکات ایمنی را یادآوری کن و از تجویز پزشکی خودداری کن.'],
+    ['دوست صمیمی', 'تو یک دوست صمیمی، شوخ‌طبع و همدل هستی. محاوره‌ای و گرم حرف بزن، خوب گوش بده و مختصر جواب بده.']
+  ];
+  const MAX_NAME = 40, MAX_INSTR = 4000;
+
+  // ---------- state ----------
+  let items = [], loaded = false, loading = false, configured = true, loadError = '';
+  let filter = '';
+  let editing = null;          // the assistant being edited (null = creating)
+  let emoji = EMOJIS[0];
+  let busy = false;
+  let lastFocus = null;
+  let closeTimer = null, delTimer = null, delArmed = false;
+
+  // ---------- helpers ----------
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fa = n => Number(n).toLocaleString('fa-IR');
+  function hueOf(id) { let h = 0; const s = String(id); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; }
+  function modelInfo(modelId) {
+    for (const c of COMPANIES) for (const m of c.models) if (m[0] === modelId) return { company: c.name, name: m[1], cid: c.id };
+    return { company: '', name: String(modelId), cid: '' };
+  }
+  function toast(msg, kind) {
+    const wrap = $('asToasts'); if (!wrap) return;
+    const t = document.createElement('div');
+    t.className = 'as-toast' + (kind ? ' ' + kind : '');
+    t.textContent = msg;
+    wrap.appendChild(t);
+    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 260); }, 2600);
+  }
+  async function post(body) {
+    const r = await fetch('/api/assistants', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    let j = {}; try { j = await r.json(); } catch (e) {}
+    return { ok: r.ok, status: r.status, j };
+  }
+
+  // ---------- load + render ----------
+  async function load() {
+    if (loading) return;
+    loading = true; loadError = '';
+    if (!loaded) render();
+    try {
+      const r = await fetch('/api/assistants', { credentials: 'same-origin', cache: 'no-store' });
+      if (r.status === 401) { loading = false; return; } // the login screen takes over
+      const j = await r.json();
+      if (!r.ok) throw new Error(j && j.error ? j.error : 'خطا ' + r.status);
+      configured = j.configured !== false;
+      items = Array.isArray(j.items) ? j.items : [];
+      loaded = true;
+    } catch (e) {
+      loadError = (e && e.message) ? e.message : 'ارتباط با سرور برقرار نشد.';
+    }
+    loading = false;
+    render();
+  }
+
+  function skeletons() { return '<div class="as-skel"></div>'.repeat(6); }
+
+  function render(animate) {
+    const grid = $('asGrid'), cnt = $('asCount'); if (!grid) return;
+    grid.classList.toggle('still', animate === false);
+    if (loading && !loaded) { grid.innerHTML = skeletons(); cnt.textContent = ''; return; }
+    if (loadError) {
+      grid.innerHTML = '<div class="as-empty"><span class="as-big">📡</span><b>لیست دستیارها لود نشد</b><p>' + esc(loadError) + '</p><button type="button" class="as-btn primary" data-act="retry">تلاش دوباره</button></div>';
+      cnt.textContent = ''; return;
+    }
+    if (!configured) {
+      grid.innerHTML = '<div class="as-empty"><span class="as-big">🗄️</span><b>ذخیره‌سازی هنوز وصل نشده</b><p>برای اینکه دستیارها بین همه مشترک باشن، یه دیتابیس رایگان باید به پروژه وصل بشه:</p>' +
+        '<div class="as-steps">۱. توی Vercel برو به پروژه ← <code>Storage</code><br>۲. <code>Upstash Redis</code> رو بساز و به پروژه وصل کن (Connect)<br>۳. یک بار <code>Redeploy</code> بزن<br>۴. همین صفحه رو دوباره باز کن</div></div>';
+      cnt.textContent = ''; return;
+    }
+    const q = filter.trim().toLowerCase();
+    const list = q ? items.filter(a => (a.name + ' ' + a.instruction + ' ' + modelInfo(a.model).name).toLowerCase().indexOf(q) !== -1) : items;
+    cnt.textContent = items.length ? (q ? fa(list.length) + ' از ' + fa(items.length) + ' دستیار' : fa(items.length) + ' دستیار') : '';
+    if (!items.length) {
+      grid.innerHTML = '<div class="as-empty"><span class="as-big">🌱</span><b>هنوز هیچ دستیاری ساخته نشده</b><p>اولین دستیار رو تو بساز: یه اسم بذار، مدلش رو انتخاب کن و بهش بگو چطور رفتار کنه.</p><button type="button" class="as-btn primary" data-act="new">＋ ساخت اولین دستیار</button></div>';
+      return;
+    }
+    if (!list.length) {
+      grid.innerHTML = '<div class="as-empty"><span class="as-big">🔍</span><b>چیزی پیدا نشد</b><p>یه کلمه‌ی دیگه رو امتحان کن.</p></div>';
+      return;
+    }
+    grid.innerHTML = list.map((a, i) => {
+      const mi = modelInfo(a.model);
+      return '<article class="as-card" data-id="' + esc(a.id) + '" tabindex="0" role="button" aria-label="گفتگو با ' + esc(a.name) + '" style="--h:' + hueOf(a.id) + ';--i:' + Math.min(i, 14) + '">' +
+        '<div class="as-card-head"><div class="as-av">' + esc(a.emoji || '🤖') + '</div><div class="as-card-name"><div class="as-name">' + esc(a.name) + '</div>' +
+        '<div class="as-meta"><b>' + esc(mi.company || '—') + '</b>' + esc(mi.name) + '</div></div></div>' +
+        '<div class="as-snip" dir="auto">' + esc(a.instruction) + '</div>' +
+        '<div class="as-actions"><button type="button" class="as-btn primary" data-act="chat">💬 گفتگو</button><button type="button" class="as-btn" data-act="edit">✏️ ویرایش</button></div></article>';
+    }).join('');
+  }
+
+  // ---------- view routing ----------
+  function syncView() {
+    const on = location.hash === '#assistants';
+    document.body.classList.toggle('view-as', on);
+    if (on) { load(); } else { closeModal(true); }
+  }
+  $('asBtn').addEventListener('click', () => { location.hash = '#assistants'; });
+  $('asBack').addEventListener('click', () => { if (location.hash === '#assistants') location.hash = ''; syncView(); });
+  window.addEventListener('hashchange', syncView);
+
+  // ---------- grid interactions ----------
+  $('asGrid').addEventListener('click', e => {
+    const actEl = e.target.closest('[data-act]');
+    const card = e.target.closest('.as-card');
+    const act = actEl ? actEl.getAttribute('data-act') : (card ? 'chat' : '');
+    if (act === 'retry') { load(); return; }
+    if (act === 'new') { openModal(null); return; }
+    if (!card) return;
+    const a = items.find(x => x.id === card.getAttribute('data-id')); if (!a) return;
+    if (act === 'edit') openModal(a); else if (act === 'chat') startChat(a);
+  });
+  $('asGrid').addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('as-card')) {
+      e.preventDefault();
+      const a = items.find(x => x.id === e.target.getAttribute('data-id')); if (a) startChat(a);
+    }
+  });
+  let st = null;
+  $('asSearch').addEventListener('input', e => { clearTimeout(st); st = setTimeout(() => { filter = e.target.value; render(false); }, 120); });
+  $('asNew').addEventListener('click', () => openModal(null));
+
+  // ---------- modal ----------
+  const dlg = $('asDlg'), modal = $('asModal'), backdrop = $('asBackdrop');
+  function buildStatic() {
+    $('asEmojis').innerHTML = EMOJIS.map(e => '<button type="button" class="as-emo" data-e="' + e + '" aria-label="آیکون ' + e + '">' + e + '</button>').join('');
+    $('asCompany').innerHTML = COMPANIES.map(c => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('');
+    $('asChips').innerHTML = TEMPLATES.map((t, i) => '<button type="button" class="as-chip" data-t="' + i + '">' + esc(t[0]) + '</button>').join('');
+  }
+  function fillModels(cid, selected) {
+    const c = COMPANIES.find(x => x.id === cid) || COMPANIES[0];
+    $('asModelSel').innerHTML = c.models.map(m => '<option value="' + esc(m[0]) + '">' + esc(m[1]) + '</option>').join('');
+    if (selected) $('asModelSel').value = selected;
+  }
+  function pickEmoji(e) {
+    emoji = e;
+    document.querySelectorAll('#asEmojis .as-emo').forEach(b => b.classList.toggle('on', b.getAttribute('data-e') === e));
+    $('asDlgIco').textContent = e;
+  }
+  function updateCounters() {
+    $('asNameCnt').textContent = $('asName').value.length + '/' + MAX_NAME;
+    const n = $('asInstr').value.length, el = $('asInstrCnt');
+    el.textContent = n + '/' + MAX_INSTR;
+    el.classList.toggle('warn', n > MAX_INSTR * 0.9 && n < MAX_INSTR);
+    el.classList.toggle('max', n >= MAX_INSTR);
+  }
+  function setErr(msg, shake) {
+    $('asErr').textContent = msg || '';
+    if (msg && shake) { dlg.classList.remove('shake'); void dlg.offsetWidth; dlg.classList.add('shake'); }
+  }
+  function disarmDelete() { clearTimeout(delTimer); delArmed = false; $('asDel').textContent = '🗑 حذف'; }
+
+  function openModal(a) {
+    clearTimeout(closeTimer);
+    editing = a || null; busy = false; disarmDelete();
+    lastFocus = document.activeElement;
+    const mi = a ? modelInfo(a.model) : null;
+    $('asDlgTitle').textContent = a ? 'ویرایش دستیار' : 'ساخت دستیار';
+    pickEmoji(a ? (a.emoji || EMOJIS[0]) : EMOJIS[Math.floor(Math.random() * EMOJIS.length)]);
+    $('asName').value = a ? a.name : '';
+    $('asCompany').value = mi && mi.cid ? mi.cid : COMPANIES[0].id;
+    fillModels($('asCompany').value, a ? a.model : '');
+    $('asInstr').value = a ? a.instruction : '';
+    $('asPw').value = ''; $('asPw').type = 'password'; $('asEye').textContent = '👁';
+    $('asPwNote').textContent = a ? 'همان رمزی که موقع ساخت گذاشتی' : 'برای تغییر و حذف بعدی لازم می‌شه';
+    $('asPwHint').textContent = a ? 'بدون رمز نمی‌شود دستیار را تغییر داد یا حذف کرد.' : 'این رمز رو یادت بمونه؛ فقط با اون می‌تونی دستیارت رو ویرایش یا حذف کنی.';
+    $('asPw').placeholder = a ? 'رمز ویرایش' : 'حداقل ۴ حرف';
+    $('asDel').style.display = a ? '' : 'none';
+    $('asSave').disabled = false; $('asSave').textContent = 'ذخیره';
+    $('asDel').disabled = false;
+    setErr('');
+    updateCounters();
+    dlg.classList.remove('leaving', 'shake'); backdrop.classList.remove('leaving');
+    modal.classList.add('on'); modal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => { try { (a ? $('asPw') : $('asName')).focus(); } catch (e) {} }, 60);
+  }
+  function closeModal(instant) {
+    if (!modal.classList.contains('on')) return;
+    clearTimeout(closeTimer); disarmDelete();
+    const done = () => { modal.classList.remove('on'); modal.setAttribute('aria-hidden', 'true'); dlg.classList.remove('leaving'); backdrop.classList.remove('leaving'); try { if (lastFocus && lastFocus.focus) lastFocus.focus(); } catch (e) {} };
+    if (instant) { done(); return; }
+    dlg.classList.add('leaving'); backdrop.classList.add('leaving');
+    closeTimer = setTimeout(done, 200);
+  }
+
+  $('asEmojis').addEventListener('click', e => { const b = e.target.closest('.as-emo'); if (b) pickEmoji(b.getAttribute('data-e')); });
+  $('asCompany').addEventListener('change', () => fillModels($('asCompany').value));
+  $('asName').addEventListener('input', updateCounters);
+  $('asInstr').addEventListener('input', updateCounters);
+  $('asChips').addEventListener('click', e => {
+    const b = e.target.closest('.as-chip'); if (!b) return;
+    const t = TEMPLATES[Number(b.getAttribute('data-t'))]; if (!t) return;
+    const ta = $('asInstr');
+    ta.value = ta.value.trim() ? (ta.value.trimEnd() + '\n\n' + t[1]).slice(0, MAX_INSTR) : t[1];
+    if (!$('asName').value.trim()) $('asName').value = t[0];
+    updateCounters(); ta.focus();
+  });
+  $('asEye').addEventListener('click', () => {
+    const p = $('asPw'); const show = p.type === 'password';
+    p.type = show ? 'text' : 'password'; $('asEye').textContent = show ? '🙈' : '👁';
+  });
+  $('asX').addEventListener('click', () => closeModal());
+  $('asCancel').addEventListener('click', () => closeModal());
+  backdrop.addEventListener('click', () => { if (!busy) closeModal(); });
+  document.addEventListener('keydown', e => {
+    if (!modal.classList.contains('on')) return;
+    if (e.key === 'Escape') { if (!busy) closeModal(); return; }
+    if (e.key === 'Tab') {
+      const f = Array.from(dlg.querySelectorAll('button, input, select, textarea')).filter(x => !x.disabled && x.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  function readForm() {
+    return {
+      name: $('asName').value.trim(), emoji: emoji, model: $('asModelSel').value,
+      instruction: $('asInstr').value.trim(), password: $('asPw').value
+    };
+  }
+  function setBusy(on, label) {
+    busy = on; $('asSave').disabled = on; $('asDel').disabled = on; $('asCancel').disabled = on; $('asX').disabled = on;
+    if (label !== undefined) $('asSave').textContent = label;
+  }
+
+  async function save() {
+    if (busy) return;
+    const f = readForm();
+    if (!f.name) { setErr('اسم دستیار را وارد کن.', true); $('asName').focus(); return; }
+    if (!f.instruction) { setErr('دستورالعمل را بنویس.', true); $('asInstr').focus(); return; }
+    if (editing ? !f.password : f.password.length < 4) { setErr(editing ? 'رمز ویرایش را وارد کن.' : 'رمز ویرایش باید حداقل ۴ حرف باشد.', true); $('asPw').focus(); return; }
+    setErr(''); setBusy(true, 'در حال ذخیره…');
+    try {
+      const body = Object.assign({ action: editing ? 'update' : 'create' }, f);
+      if (editing) body.id = editing.id;
+      const r = await post(body);
+      if (r.status === 401) { setBusy(false, 'ذخیره'); return; }
+      if (!r.ok || !r.j || !r.j.item) { setBusy(false, 'ذخیره'); setErr((r.j && r.j.error) || 'ذخیره نشد. دوباره امتحان کن.', true); return; }
+      const it = r.j.item;
+      if (editing) {
+        items = items.map(x => x.id === it.id ? it : x);
+        if (window.__activeAssistantId && window.__activeAssistantId() === it.id) setActive(it, true);
+      } else { items.unshift(it); }
+      configured = true; loaded = true;
+      setBusy(false, 'ذخیره');
+      filter = ''; $('asSearch').value = '';
+      render();
+      closeModal();
+      toast(editing ? 'تغییرات ذخیره شد ✓' : 'دستیار ساخته شد 🎉', 'ok');
+    } catch (e) {
+      setBusy(false, 'ذخیره'); setErr('ارتباط با سرور برقرار نشد.', true);
+    }
+  }
+  $('asSave').addEventListener('click', save);
+  dlg.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); save(); } });
+  // a stale error message disappears as soon as the user edits something
+  dlg.addEventListener('input', () => { if ($('asErr').textContent) setErr(''); });
+
+  $('asDel').addEventListener('click', async () => {
+    if (busy || !editing) return;
+    if (!delArmed) {
+      delArmed = true; $('asDel').textContent = 'مطمئنی؟ دوباره بزن';
+      clearTimeout(delTimer); delTimer = setTimeout(disarmDelete, 4000); return;
+    }
+    const pw = $('asPw').value;
+    if (!pw) { disarmDelete(); setErr('برای حذف، رمز ویرایش را وارد کن.', true); $('asPw').focus(); return; }
+    disarmDelete(); setErr(''); setBusy(true);
+    try {
+      const r = await post({ action: 'delete', id: editing.id, password: pw });
+      if (r.status === 401) { setBusy(false); return; }
+      if (!r.ok) { setBusy(false); setErr((r.j && r.j.error) || 'حذف نشد.', true); return; }
+      const gone = editing.id;
+      items = items.filter(x => x.id !== gone);
+      if (window.__activeAssistantId && window.__activeAssistantId() === gone) setActive(null);
+      setBusy(false); render(); closeModal(); toast('دستیار حذف شد', 'ok');
+    } catch (e) { setBusy(false); setErr('ارتباط با سرور برقرار نشد.', true); }
+  });
+
+  // ---------- using an assistant in the chat ----------
+  function addWelcome() {
+    if (!activeAssistant) return;
+    const a = activeAssistant, mi = modelInfo(a.model);
+    const w = document.createElement('div');
+    w.className = 'as-welcome'; w.style.setProperty('--h', hueOf(a.id));
+    w.innerHTML = '<div class="as-av">' + esc(a.emoji || '🤖') + '</div><b>' + esc(a.name) + '</b><p>' + esc(mi.company ? mi.company + ' · ' + mi.name : mi.name) + '<br>شروع کن، دستیار آماده‌ست.</p>';
+    chat.appendChild(w);
+  }
+  function setActive(a, keepChat) {
+    activeAssistant = a || null;
+    document.body.classList.toggle('has-assistant', !!a);
+    const bar = $('asBar');
+    if (a) {
+      const mi = modelInfo(a.model);
+      bar.style.setProperty('--h', hueOf(a.id));
+      $('asBarAv').textContent = a.emoji || '🤖';
+      $('asBarName').textContent = a.name;
+      $('asBarModel').textContent = mi.company ? mi.company + ' · ' + mi.name : mi.name;
+      mLb.textContent = (a.emoji || '🤖') + ' ' + a.name;
+      inp.placeholder = 'پیام به ' + a.name + '...';
+    } else {
+      mLb.textContent = mSel.options[mSel.selectedIndex].text;
+      inp.placeholder = 'پیامت رو بنویس...';
+    }
+    mSel.disabled = !!a || isStreaming;
+    if (!keepChat) {
+      history = []; pendingAttachments = []; renderAttachRow(); chat.innerHTML = '';
+      if (a) addWelcome();
+    }
+  }
+  window.__activeAssistantId = () => (activeAssistant ? activeAssistant.id : null);
+
+  function startChat(a) {
+    if (isStreaming) { toast('صبر کن جواب فعلی تموم بشه', 'bad'); return; }
+    setActive(a);
+    if (location.hash === '#assistants') location.hash = '';
+    syncView();
+    setTimeout(() => { try { inp.focus(); } catch (e) {} }, 80);
+  }
+  $('asBarExit').addEventListener('click', () => { if (isStreaming) { toast('صبر کن جواب فعلی تموم بشه', 'bad'); return; } setActive(null); });
+  // the clear button wipes the chat; keep the assistant's welcome card
+  clearBtn.addEventListener('click', () => { if (!isStreaming && activeAssistant) addWelcome(); });
+
+  buildStatic();
   syncView();
 })();
 </script>
