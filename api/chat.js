@@ -366,7 +366,10 @@ export default async function handler(req, res) {
         if (tools) pplxBody.tools = tools;
       }
 
-      
+      // GLM Flash "thinks" silently for minutes on bigger tasks (nothing is streamed, it looks frozen).
+      // Measured: a calculator took 7 s with low reasoning effort and never finished without it.
+      if (/glm-[0-9.]+-flash/.test(pplxModel)) pplxBody.reasoning = { effort: 'low' };
+
       stage = 'waiting for response headers';
       var t0 = Date.now();
       var ac = new AbortController();
@@ -382,6 +385,14 @@ export default async function handler(req, res) {
       bump();
 
       // fallback: if structured input failed, try plain string (no images in this path)
+      // 1st fallback: the API did not accept the reasoning option -> same request without it
+      if (!pRes.ok && pRes.status === 400 && pplxBody.reasoning) {
+        delete pplxBody.reasoning;
+        pRes = await fetch('https://api.perplexity.ai/v1/agent', {
+          method: 'POST', headers: chromeH, body: JSON.stringify(pplxBody), signal: ac.signal
+        });
+        bump();
+      }
       if (!pRes.ok && pRes.status === 400) {
         var fb = Object.assign({}, pplxBody, { input: lastInput });
         pRes = await fetch('https://api.perplexity.ai/v1/agent', {
