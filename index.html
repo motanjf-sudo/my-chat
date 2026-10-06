@@ -1100,6 +1100,37 @@ body.view-code #codeView { display: flex; animation: cvIn 0.35s cubic-bezier(0.2
 .cv-sel { text-overflow: ellipsis; }
 .cv-thinking { color: var(--gray-400); font-size: .8rem; padding: 4px 2px; animation: cvPulse 1.4s ease-in-out infinite; }
 @keyframes cvPulse { 50% { opacity: .4; } }
+
+/* ===== CODE CARDS IN CHAT (normal chat + assistants) ===== */
+body { transition: padding-right 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+body.cp-open { padding-right: 50vw; }
+#cpWrap {
+  position: fixed; top: 0; bottom: 0; right: 0; width: 50vw; z-index: 8000;
+  background: var(--white); border-left: 1px solid var(--gray-200); box-shadow: -10px 0 30px rgba(15,23,42,0.08);
+  display: flex; flex-direction: column; min-width: 0;
+  transform: translateX(100%); visibility: hidden;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0.4s;
+}
+#cpWrap.open { transform: none; visibility: visible; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s; }
+body.view-code #cpWrap, body.view-as #cpWrap { display: none; }
+body.view-code.cp-open, body.view-as.cp-open { padding-right: 0; }
+.bubble .cp-card { margin: 10px 0 6px; }
+.bubble .cp-card:first-child { margin-top: 2px; }
+.cp-card.nopop { animation: none; }
+/* the chat column is only half as wide while the panel is open: use the compact header */
+body.cp-open header { padding: 8px 10px; gap: 6px; }
+body.cp-open header h1, body.cp-open header img, body.cp-open #mLb { display: none; }
+body.cp-open #mSel { flex: 1; min-width: 0; max-width: none; padding: 6px 6px; }
+body.cp-open #asBtn, body.cp-open #codeBtn, body.cp-open #clearBtn { padding: 6px 8px; font-size: .74rem; }
+body.cp-open #clearBtn .hide-sm { display: none; }
+body.cp-open #tbar { overflow-x: auto; }
+@media (max-width: 720px) {
+  #cpWrap { width: 100vw; border-left-width: 0; }
+  body.cp-open { padding-right: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #cpWrap, body { transition: none !important; }
+}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.12.0/styles/github.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.12.0/highlight.min.js"></script>
@@ -1735,6 +1766,12 @@ function enhanceCodeBlocks(bub) {
   });
 }
 
+// code blocks: big ones become cards (see CodeCards), small ones get the copy toolbar
+function decorateCode(bub, sess, raw, final) {
+  if (window.CodeCards && sess) { try { window.CodeCards.cardify(bub, sess, raw, final); } catch (e) { console.error('code cards', e); } }
+  if (final) enhanceCodeBlocks(bub);
+}
+
 // ===== STREAMING UI STATE (send ↔ stop button) =====
 const SEND_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
 const STOP_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>';
@@ -1942,6 +1979,7 @@ async function streamFromHistory() {
   const persona  = activeAssistant ? activeAssistant.instruction : '';
 
   let rawContent = '';
+  const sess = window.CodeCards ? window.CodeCards.session() : null;
   let botEl = null;
   let pendingThink = '';
   let pendingContent = '';
@@ -1962,6 +2000,7 @@ async function streamFromHistory() {
       pendingContent = '';
       botEl.thinkDots.style.display = 'none'; // hide dots when text arrives
       botEl.bub.innerHTML = renderMd(rawContent);
+      decorateCode(botEl.bub, sess, rawContent, false);
     }
 
     scrollBottom();
@@ -2026,7 +2065,7 @@ async function streamFromHistory() {
 
           // finalize markdown
           botEl.bub.innerHTML = renderMd(rawContent);
-          enhanceCodeBlocks(botEl.bub);
+          decorateCode(botEl.bub, sess, rawContent, true);
 
           // MathJax
           if (window.MathJax && window.MathJax.typesetPromise) {
@@ -2052,7 +2091,7 @@ async function streamFromHistory() {
       if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
       flush();
       botEl.bub.innerHTML = renderMd(rawContent);
-      enhanceCodeBlocks(botEl.bub);
+      decorateCode(botEl.bub, sess, rawContent, true);
       if (window.MathJax && window.MathJax.typesetPromise) {
         MathJax.typesetPromise([botEl.bub]).catch(() => {});
       }
@@ -2068,7 +2107,7 @@ async function streamFromHistory() {
       if (botEl && rawContent) {
         botEl.bub.innerHTML = renderMd(rawContent) +
           '<div style="color:var(--gray-400);font-size:0.75rem;margin-top:6px;">⏹️ پاسخ متوقف شد</div>';
-        enhanceCodeBlocks(botEl.bub);
+        decorateCode(botEl.bub, sess, rawContent, true);
         if (window.MathJax && window.MathJax.typesetPromise) {
           MathJax.typesetPromise([botEl.bub]).catch(() => {});
         }
@@ -2723,6 +2762,7 @@ async function streamFromHistory() {
     renderEmpty();
   });
 
+  window.__cvKit = { LANGS: LANGS, frameDoc: frameDoc };
   syncView();
 })();
 </script>
@@ -3076,5 +3116,344 @@ async function streamFromHistory() {
   syncView();
 })();
 </script>
+
+<aside id="cpWrap" aria-hidden="true" aria-label="کد">
+  <div class="cv-ph">
+    <div class="cv-ph-title"><span id="cpPIco">📄</span><span id="cpPName"></span></div>
+    <div class="cv-tabs" id="cpTabs"><span class="cv-tab-ind" id="cpInd"></span></div>
+    <div class="cv-ph-actions">
+      <button type="button" class="cv-ic" id="cpCopy" title="کپی کد" aria-label="کپی کد">📋</button>
+      <button type="button" class="cv-ic" id="cpDl" title="دانلود فایل" aria-label="دانلود فایل">⬇️</button>
+      <button type="button" class="cv-ic close" id="cpClose" title="بستن" aria-label="بستن پنل">✕</button>
+    </div>
+  </div>
+  <div class="cv-body">
+    <div class="cv-view on" id="cpVCode"><div class="cv-code" id="cpCodeScroll"><pre><code id="cpCodeEl"></code></pre></div></div>
+    <div class="cv-view" id="cpVPrev">
+      <div class="cv-bar"><span class="cv-status" id="cpPrevStatus">پیش‌نمایش زنده</span><button type="button" class="cv-btn" id="cpReload">🔄 بارگذاری مجدد</button></div>
+      <div class="cv-frame-wrap" id="cpPrevHost"></div>
+    </div>
+    <div class="cv-view" id="cpVRun">
+      <div class="cv-bar"><span class="cv-status" id="cpRunStatus"></span><button type="button" class="cv-btn" id="cpRunBtn">▶ اجرا</button></div>
+      <div class="cv-out" id="cpOut" aria-live="polite"></div>
+      <div class="cv-run-host" id="cpRunHost"></div>
+    </div>
+  </div>
+</aside>
+<script>
+// ===== CODE CARDS IN CHAT: every big code block in the normal chat / assistants becomes a card that opens a side panel =====
+(function () {
+  'use strict';
+  const kit = window.__cvKit;
+  if (!kit) return;                       // Code-view script missing: the chat keeps its plain code blocks
+  const $ = id => document.getElementById(id);
+  const MIN_LINES = 4;                    // shorter snippets stay as ordinary inline blocks
+
+  const wrap = $('cpWrap'), tabsEl = $('cpTabs'), ind = $('cpInd');
+  const vs = { code: $('cpVCode'), preview: $('cpVPrev'), run: $('cpVRun') };
+  const codeEl = $('cpCodeEl'), codeScroll = $('cpCodeScroll');
+  const prevHost = $('cpPrevHost'), prevStatus = $('cpPrevStatus');
+  const outEl = $('cpOut'), runStatus = $('cpRunStatus'), runBtn = $('cpRunBtn'), runHost = $('cpRunHost');
+
+  let cur = null, tab = 'code', runId = 0, runState = null, shown = { code: null, done: null };
+
+  // ---------- language detection ----------
+  const ALIAS = { js: 'javascript', jsx: 'javascript', mjs: 'javascript', node: 'javascript', py: 'python', python3: 'python',
+    ts: 'typescript', 'c++': 'cpp', cc: 'cpp', cxx: 'cpp', 'c#': 'csharp', cs: 'csharp', sh: 'bash', shell: 'bash', zsh: 'bash',
+    golang: 'go', rs: 'rust', kt: 'kotlin', rb: 'ruby', htm: 'html', yml: 'yaml', md: 'markdown', ps1: 'powershell', pwsh: 'powershell',
+    docker: 'dockerfile', mysql: 'sql', postgresql: 'sql', sqlite: 'sql' };
+  const EXTRA = {
+    svg:        { name: 'SVG',        file: 'image.svg',    icon: '🖼️', hl: 'xml', mode: 'preview' },
+    json:       { name: 'JSON',       file: 'data.json',    icon: '🧾', hl: 'json' },
+    css:        { name: 'CSS',        file: 'style.css',    icon: '🎨', hl: 'css' },
+    yaml:       { name: 'YAML',       file: 'config.yaml',  icon: '🧾', hl: 'yaml' },
+    xml:        { name: 'XML',        file: 'data.xml',     icon: '🧾', hl: 'xml' },
+    markdown:   { name: 'Markdown',   file: 'README.md',    icon: '📝', hl: 'markdown' },
+    powershell: { name: 'PowerShell', file: 'script.ps1',   icon: '💻', hl: 'powershell' },
+    dockerfile: { name: 'Dockerfile', file: 'Dockerfile',   icon: '🐳', hl: 'dockerfile' },
+    r:          { name: 'R',          file: 'script.R',     icon: '📊', hl: 'r' },
+    lua:        { name: 'Lua',        file: 'script.lua',   icon: '🌙', hl: 'lua' },
+    dart:       { name: 'Dart',       file: 'main.dart',    icon: '🎯', hl: 'dart' },
+    scala:      { name: 'Scala',      file: 'Main.scala',   icon: '🔴', hl: 'scala' },
+    perl:       { name: 'Perl',       file: 'script.pl',    icon: '🐪', hl: 'perl' }
+  };
+  function resolve(raw, code) {
+    let l = String(raw || '').toLowerCase().trim();
+    l = ALIAS[l] || l;
+    if ((!l || l === 'xml' || l === 'markup' || l === 'text' || l === 'plaintext' || l === 'txt') && /^\s*(<!doctype\s+html|<html[\s>])/i.test(code)) l = 'html';
+    const base = kit.LANGS.find(x => x.id === l);
+    if (base) return base;
+    if (EXTRA[l]) return Object.assign({ id: l }, EXTRA[l]);
+    const safe = l.replace(/[^a-z0-9+#_-]/g, '');
+    const hl = safe && window.hljs && hljs.getLanguage(safe) ? safe : null;
+    return { id: safe || 'text', name: safe ? (safe.length <= 4 ? safe.toUpperCase() : safe.charAt(0).toUpperCase() + safe.slice(1)) : 'Code',
+             file: 'snippet.' + (safe || 'txt'), icon: '📄', hl: hl };
+  }
+  function stem(file) { const s = file.replace(/\.[^.]+$/, ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+  function titleOf(def, code) {
+    if (def.id === 'html') {
+      const m = code.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      if (m && m[1].trim()) return m[1].trim().replace(/\s+/g, ' ').slice(0, 60);
+    }
+    return stem(def.file);
+  }
+  function unclosed(raw) {
+    const m = String(raw || '').match(/^[ \t]{0,3}`{3,}/gm);
+    return !!m && m.length % 2 === 1;
+  }
+
+  // ---------- the card ----------
+  function makeCard(blk) {
+    const L = blk.def, lines = blk.code ? blk.code.split('\n').length : 0;
+    const c = document.createElement('div');
+    c.className = 'cv-card cp-card' + (blk.done ? '' : ' writing') + (blk === cur ? ' active' : '') + (blk.popped ? ' nopop' : '');
+    blk.popped = true;
+    c.setAttribute('role', 'button');
+    c.tabIndex = 0;
+    const ico = document.createElement('div'); ico.className = 'cv-card-ico'; ico.textContent = L.icon;
+    const txt = document.createElement('div'); txt.className = 'cv-card-txt';
+    const t = document.createElement('div'); t.className = 'cv-card-title'; t.textContent = titleOf(L, blk.code);
+    const s = document.createElement('div'); s.className = 'cv-card-sub';
+    s.textContent = blk.done
+      ? 'Code · ' + L.name + (lines ? ' · ' + lines + (lines === 1 ? ' line' : ' lines') : '')
+      : 'Writing… ' + (lines ? lines + ' lines' : '');
+    txt.appendChild(t); txt.appendChild(s);
+    const act = document.createElement('div'); act.className = 'cv-card-act';
+    if (blk.done) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'cv-card-dl'; b.textContent = 'دانلود';
+      b.addEventListener('click', e => { e.stopPropagation(); download(blk); });
+      act.appendChild(b);
+    } else {
+      const sp = document.createElement('div'); sp.className = 'cv-spin'; act.appendChild(sp);
+    }
+    c.appendChild(ico); c.appendChild(txt); c.appendChild(act);
+    c.addEventListener('click', e => { if (e.target.closest('.cv-card-dl')) return; open(blk); });
+    c.addEventListener('keydown', e => {
+      if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('.cv-card-dl')) { e.preventDefault(); open(blk); }
+    });
+    return c;
+  }
+
+  // called by the chat after every render of a bot message
+  function cardify(bub, sess, raw, final) {
+    if (!bub || !sess) return;
+    const pres = Array.from(bub.querySelectorAll('pre'));
+    const open_ = !final && unclosed(raw);
+    pres.forEach((pre, i) => {
+      const el = pre.querySelector('code');
+      if (!el) return;
+      let code = el.textContent.replace(/\n+$/, '');
+      if (open_ && i === pres.length - 1) code = code.replace(/\n`{1,2}$/, '');   // a closing fence that is still being typed
+      let cls = '';
+      el.classList.forEach(c => { if (c.indexOf('language-') === 0) cls = c.slice(9); });
+      let blk = sess.blocks[i];
+      if (!blk) blk = sess.blocks[i] = { def: null, code: '', done: false, ran: false, isCard: false, popped: false, card: null };
+      blk.code = code;
+      blk.def = resolve(cls, code);
+      blk.done = !!final || !(i === pres.length - 1 && open_);
+      if (code.split('\n').length >= MIN_LINES) blk.isCard = true;
+      if (!blk.isCard) return;                   // small block: stays a normal <pre> (the chat adds its copy button)
+      const card = makeCard(blk);
+      pre.replaceWith(card);
+      blk.card = card;
+      if (cur === blk) syncPanel(blk);
+    });
+  }
+
+  // ---------- panel ----------
+  function tabsFor(blk) {
+    const t = [['code', 'کد']];
+    if (blk.def.mode === 'preview') t.push(['preview', 'پیش‌نمایش']);
+    if (blk.def.mode === 'run') t.push(['run', 'اجرا']);
+    return t;
+  }
+  function buildTabs(blk) {
+    tabsEl.querySelectorAll('button').forEach(b => b.remove());
+    const t = tabsFor(blk);
+    tabsEl.style.display = t.length > 1 ? '' : 'none';
+    t.forEach(([id, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.dataset.tab = id; b.textContent = label;
+      b.disabled = id !== 'code' && !blk.done;
+      b.addEventListener('click', () => selectTab(id));
+      tabsEl.appendChild(b);
+    });
+  }
+  function moveInd() {
+    const on = tabsEl.querySelector('button.on');
+    if (!on) { ind.style.width = '0'; return; }
+    ind.style.width = on.offsetWidth + 'px';
+    ind.style.transform = 'translateX(' + on.offsetLeft + 'px)';
+  }
+  function showView(name) { Object.keys(vs).forEach(k => vs[k].classList.toggle('on', k === name)); }
+  function nearBottom(el) { return el.scrollHeight - el.scrollTop - el.clientHeight < 120; }
+
+  function showCode(blk, final) {
+    const code = blk.code || '';
+    if (final && window.hljs && blk.def.hl) {
+      try {
+        codeEl.className = 'hljs language-' + blk.def.hl;
+        codeEl.innerHTML = hljs.highlight(code, { language: blk.def.hl, ignoreIllegals: true }).value;
+        return;
+      } catch (e) { /* plain text below */ }
+    }
+    codeEl.className = '';
+    const stick = nearBottom(codeScroll);
+    codeEl.textContent = code;
+    if (!final && stick) codeScroll.scrollTop = codeScroll.scrollHeight;
+  }
+  function selectTab(name) {
+    if (!cur) return;
+    const allowed = tabsFor(cur).map(t => t[0]);
+    if (!allowed.includes(name) || (name !== 'code' && !cur.done)) name = 'code';
+    tab = name;
+    tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+    requestAnimationFrame(moveInd);
+    if (name === 'code') showView('code');
+    else if (name === 'preview') { showView('preview'); renderPreview(cur); }
+    else { showView('run'); if (!cur.ran) runBlock(cur); }
+  }
+  function header(blk) {
+    $('cpPIco').textContent = blk.def.icon;
+    $('cpPName').textContent = titleOf(blk.def, blk.code) + ' · ' + blk.def.file;
+  }
+  function open(blk) {
+    if (cur && cur !== blk) stopRun();
+    document.querySelectorAll('.cp-card.active').forEach(c => c.classList.remove('active'));
+    cur = blk;
+    if (blk.card) blk.card.classList.add('active');
+    header(blk);
+    buildTabs(blk);
+    showCode(blk, blk.done);
+    shown = { code: blk.code, done: blk.done };
+    codeScroll.scrollTop = 0;
+    wrap.classList.add('open');
+    wrap.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('cp-open');
+    tab = 'code';
+    selectTab('code');
+    requestAnimationFrame(moveInd);
+    setTimeout(moveInd, 450);
+  }
+  function close() {
+    wrap.classList.remove('open');
+    wrap.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('cp-open');
+    stopRun();
+    prevHost.innerHTML = '';
+    document.querySelectorAll('.cp-card.active').forEach(c => c.classList.remove('active'));
+    cur = null;
+    shown = { code: null, done: null };
+  }
+  // the open block is still being written (or re-rendered): keep the panel in step with it
+  function syncPanel(blk) {
+    if (shown.code === blk.code && shown.done === blk.done) return;
+    const doneChanged = shown.done !== blk.done;
+    shown = { code: blk.code, done: blk.done };
+    header(blk);
+    if (tab === 'code' || doneChanged) showCode(blk, blk.done);
+    if (doneChanged) { buildTabs(blk); selectTab(tab); }
+  }
+  $('cpClose').addEventListener('click', close);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && cur) close(); });
+  window.addEventListener('resize', moveInd);
+  window.addEventListener('hashchange', close);
+  // a message that disappears (clear / regenerate / edit) must not leave its code open
+  new MutationObserver(() => { if (cur && cur.card && !document.body.contains(cur.card)) close(); })
+    .observe($('chat'), { childList: true });
+
+  // ---------- copy / download ----------
+  function flash(btn, txt) { const o = btn.textContent; btn.textContent = txt; setTimeout(() => { btn.textContent = o; }, 1500); }
+  $('cpCopy').addEventListener('click', () => {
+    if (!cur) return;
+    const btn = $('cpCopy'), text = cur.code || '';
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); flash(btn, '✅'); } catch (e) { flash(btn, '⚠️'); }
+      ta.remove();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => flash(btn, '✅'), fallback);
+    else fallback();
+  });
+  function download(blk) {
+    const url = URL.createObjectURL(new Blob([blk.code || ''], { type: 'text/plain;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = blk.def.file;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  $('cpDl').addEventListener('click', () => { if (cur) download(cur); });
+
+  // ---------- preview (HTML / SVG) ----------
+  function renderPreview(blk) {
+    prevHost.innerHTML = '';
+    const f = document.createElement('iframe');
+    f.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups allow-pointer-lock');
+    f.setAttribute('title', 'پیش‌نمایش');
+    f.srcdoc = blk.code || '';
+    prevHost.appendChild(f);
+    prevStatus.textContent = 'پیش‌نمایش زنده';
+  }
+  $('cpReload').addEventListener('click', () => { if (cur) renderPreview(cur); });
+
+  // ---------- run (JavaScript / Python) ----------
+  function out(kind, text) {
+    const d = document.createElement('div');
+    if (kind) d.className = kind;
+    d.textContent = text;
+    const stick = nearBottom(outEl);
+    outEl.appendChild(d);
+    if (stick) outEl.scrollTop = outEl.scrollHeight;
+  }
+  function stopRun() {
+    if (!runState) return;
+    clearTimeout(runState.timer);
+    if (runState.frame) runState.frame.remove();
+    runState = null;
+  }
+  function runBlock(blk) {
+    stopRun();
+    blk.ran = true;
+    outEl.innerHTML = '';
+    runStatus.textContent = '';
+    runBtn.disabled = true;
+    const id = ++runId;
+    const f = document.createElement('iframe');
+    f.setAttribute('sandbox', 'allow-scripts');
+    f.setAttribute('title', 'اجرا');
+    const isPy = blk.def.id === 'python';
+    runState = { id, frame: f, timer: setTimeout(() => {
+      if (runState && runState.id === id) {
+        out('err', 'زمان اجرا تموم شد (' + (isPy ? '۶۰' : '۱۵') + ' ثانیه) و اجرا متوقف شد.');
+        stopRun(); runBtn.disabled = false; runStatus.textContent = 'متوقف شد';
+      }
+    }, isPy ? 60000 : 15000) };
+    f.srcdoc = kit.frameDoc(id, blk.def.id, blk.code || '');
+    runHost.appendChild(f);
+    runStatus.textContent = 'در حال اجرا…';
+  }
+  runBtn.addEventListener('click', () => { if (cur && cur.done) runBlock(cur); });
+  window.addEventListener('message', e => {
+    const d = e.data;
+    if (!d || typeof d !== 'object' || !runState || d.cvRun !== runState.id || e.source !== runState.frame.contentWindow) return;
+    if (d.type === 'log') out('', d.text);
+    else if (d.type === 'warn') out('warn', d.text);
+    else if (d.type === 'err') out('err', d.text);
+    else if (d.type === 'status') runStatus.textContent = d.text;
+    else if (d.type === 'done') {
+      clearTimeout(runState.timer);
+      runBtn.disabled = false;
+      runStatus.textContent = 'اجرا تموم شد';
+      if (!outEl.children.length) out('sys', '(خروجی‌ای چاپ نشد. برای دیدن نتیجه از print یا console.log استفاده کن.)');
+    }
+  });
+
+  window.CodeCards = { session: () => ({ blocks: [] }), cardify: cardify, close: close };
+})();
+</script>
+
 </body>
 </html>
