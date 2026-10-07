@@ -1098,6 +1098,44 @@ body.view-code #codeView { display: flex; animation: cvIn 0.35s cubic-bezier(0.2
 
 .cv-card-sub { direction: ltr; text-align: right; }
 .cv-sel { text-overflow: ellipsis; }
+
+/* ----- images attached in the code view ----- */
+#cvAttach {
+  width: 44px; height: 44px; background: var(--white); border: 1.5px solid var(--gray-200); border-radius: 12px; color: var(--gray-600);
+  cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; font-size: 1.1rem;
+}
+#cvAttach:hover { border-color: var(--green-main); color: var(--green-main); }
+#cvAttach:disabled { opacity: 0.4; cursor: default; }
+.cv-imgs { display: none; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.cv-imgs.show { display: flex; }
+.cv-chip {
+  position: relative; width: 64px; height: 64px; border-radius: 12px; overflow: hidden; border: 1.5px solid var(--green-border);
+  background: var(--gray-100); animation: cvPop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+.cv-chip img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cv-chip .cv-tag {
+  position: absolute; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.65); color: #fff; font-size: 0.62rem; line-height: 1.6;
+  text-align: center; direction: ltr; font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.cv-chip .cv-x {
+  position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: rgba(15,23,42,0.7); color: #fff;
+  font-size: 0.7rem; line-height: 20px; padding: 0; cursor: pointer;
+}
+.cv-chip .cv-x:hover { background: #dc2626; }
+.cv-chip.busy::after {
+  content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.7);
+}
+.cv-chip.busy::before {
+  content: ''; position: absolute; z-index: 1; top: 50%; left: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%;
+  border: 2.5px solid var(--green-light); border-top-color: var(--green-main); animation: cvSpin 0.8s linear infinite;
+}
+.cv-imgnote { display: none; font-size: 0.76rem; line-height: 1.7; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 6px 10px; margin-bottom: 10px; }
+.cv-imgnote.show { display: block; }
+.cv-chat.drag { outline: 2.5px dashed var(--green-main); outline-offset: -8px; background: var(--green-pale); }
+.msg.user .cv-umg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.msg.user .cv-umg figure { position: relative; margin: 0; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.5); }
+.msg.user .cv-umg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.msg.user .cv-umg figcaption { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.65); color: #fff; font-size: 0.6rem; text-align: center; direction: ltr; line-height: 1.6; }
 .cv-thinking { color: var(--gray-400); font-size: .8rem; padding: 4px 2px; animation: cvPulse 1.4s ease-in-out infinite; }
 @keyframes cvPulse { 50% { opacity: .4; } }
 
@@ -1335,7 +1373,11 @@ body.cp-open #tbar { overflow-x: auto; }
     <section class="cv-chat">
       <div id="cvList"></div>
       <div class="cv-foot">
+        <div class="cv-imgs" id="cvImgs"></div>
+        <div class="cv-imgnote" id="cvImgNote" role="status"></div>
         <div class="input-row">
+          <button id="cvAttach" type="button" title="ضمیمه کردن عکس" aria-label="ضمیمه کردن عکس">📎</button>
+          <input type="file" id="cvFile" accept="image/*" multiple style="display:none">
           <textarea id="cvInp" rows="1" placeholder="بنویس چی می‌خوای برات بسازم..."></textarea>
           <button id="cvSend" type="button" aria-label="ارسال"></button>
         </div>
@@ -2203,6 +2245,7 @@ async function streamFromHistory() {
   // ---------- elements ----------
   const view = $('codeView'), main = $('cvMain'), list = $('cvList'), inp = $('cvInp'), sendBtn = $('cvSend');
   const langSel = $('cvLang'), modelSel = $('cvModel'), clearBtn = $('cvClear');
+  const imgsEl = $('cvImgs'), noteEl = $('cvImgNote'), attachBtn = $('cvAttach'), fileInp = $('cvFile'), chatCol = document.querySelector('#cvMain .cv-chat');
   const tabsEl = $('cvTabs'), ind = $('cvInd');
   const vCode = $('cvVCode'), vPrev = $('cvVPrev'), vRun = $('cvVRun'), vNone = $('cvVNone');
   const codeEl = $('cvCodeEl'), codeScroll = $('cvCodeScroll');
@@ -2220,6 +2263,10 @@ async function streamFromHistory() {
   let vid = 0;
   let runId = 0;
   let runState = null;         // { id, frame, timer }
+  let images = [];             // pictures already sent in this chat: IMG_1 = images[0] ...  { n, name, mime, data, url, w, h }
+  let pending = [];            // pictures chosen for the next message (some may still be getting compressed)
+  let preparing = 0;
+  let noteTimer = 0;
 
   // remember language + model (nice to have; ignore failures)
   const store = {
@@ -2275,19 +2322,34 @@ async function streamFromHistory() {
       lang.rule ? '6. ' + lang.rule : '',
       'Write clean, well-structured code with brief comments, handle edge cases, and make sure it actually works.',
       'QUALITY BAR: the code must be completely bug-free. Before answering, carefully re-read and mentally execute your whole program once from top to bottom: every variable, function, import and DOM id must exist and be defined before use, no syntax errors, no runtime errors, no infinite loops, no blank or black screen, and no console errors. Never use placeholders, TODOs or omitted parts. Prefer simple, robust code over clever code, and finish every feature you start.',
+      imageRules(lang, false),
       lang.id === 'html' ? 'GRAPHICS BAR: deliver the best possible visual quality: a polished modern design, rich colors and gradients, depth with shadows and glow, crisp typography, smooth 60 FPS animations and transitions, responsive layout for mobile and desktop, and tasteful micro-interactions. For canvas/WebGL/Three.js work use the best graphics techniques available (good lighting, procedural textures, fog, particles, bloom-like glow where it is safe) while keeping the code stable and error-free. Wrap risky initialization in try/catch and show errors visibly on screen instead of failing silently.' : ''
     ].filter(Boolean).join('\n');
+  }
+
+  // tells the model how to use the pictures the user attached (the app swaps IMG_n for the real file afterwards)
+  function imageRules(lang, short) {
+    if (!images.length) return '';
+    const list = images.map(a => 'IMG_' + a.n + ' (' + a.name + ', ' + a.w + 'x' + a.h + ')').join(', ');
+    if (lang.id !== 'html') return 'The user attached reference image(s): ' + list + '. Use them only as a visual reference; images cannot be embedded in ' + lang.name + ' code.';
+    if (short) return 'USER IMAGES: ' + list + '. NEVER redraw or imitate them with code. To show one, use the exact text IMG_n as its URL, e.g. <img src="IMG_1" alt="">; the app swaps in the real file. Never write base64 or other URLs for them.';
+    return 'USER IMAGES: the user attached image(s): ' + list + '. They are real files kept by the app. Look at them to understand what they show, but NEVER redraw, trace or imitate them with CSS, SVG, canvas or emoji. ' +
+      'Whenever the page should show one of them, use the exact placeholder text IMG_n as the image URL, for example <img src="IMG_1" alt="describe it">, style="background-image:url(IMG_1)" or const src = "IMG_1". ' +
+      'The app replaces each placeholder with the real picture afterwards. Never write base64 data or external URLs for these images, and never write the placeholder anywhere except as an image URL. Size and crop them with CSS (width, height, object-fit).';
   }
 
   function systemShort(lang) {
     return [
       'You write code in ' + lang.name + '. Reply format: line 1 exactly "TITLE: <1-3 word English name>", then one short Persian sentence, then ONE fenced code block (```' + lang.fence + ') with the COMPLETE working program (no placeholders), then nothing else.',
       lang.rule || '',
-      'The code must be bug-free: no syntax or runtime errors.'
+      'The code must be bug-free: no syntax or runtime errors.',
+      imageRules(lang, true)
     ].filter(Boolean).join('\n');
   }
 
-  function apiMessages() {
+  function apiMessages(model) {
+    const lastH = hist[hist.length - 1];
+    const turnImgs = lastH && lastH.role === 'user' && lastH.attach ? lastH.attach : [];   // only the turn that carries pictures sends their pixels
     let msgs = hist.slice(-12).map(m => ({ role: m.role, content: m.content }));
     while (msgs.length && msgs[0].role !== 'user') msgs.shift();
     // older answers keep their explanation but not their (long) code
@@ -2301,6 +2363,13 @@ async function streamFromHistory() {
       const p = merged[merged.length - 1];
       if (p && p.role === m.role) p.content += '\n\n' + m.content; else merged.push({ role: m.role, content: m.content });
     });
+    const last = merged[merged.length - 1];
+    if (last && last.role === 'user' && turnImgs.length) {
+      const tag = '\n\n[Attached image(s) in this message: ' + turnImgs.map(a => 'IMG_' + a.n + ' (' + a.name + ', ' + a.w + 'x' + a.h + ')').join(', ') + ']';
+      last.content += tag;
+      // models that cannot look at pictures only get the text note; the others also get the pixels
+      if (canSee(model)) last.content = [{ type: 'text', text: last.content }].concat(turnImgs.map(a => ({ type: 'image', mimeType: a.mime, data: a.data })));
+    }
     return merged;
   }
 
@@ -2339,13 +2408,26 @@ async function streamFromHistory() {
   }
 
   // ---------- chat bubbles ----------
-  function addUser(text) {
+  function addUser(text, atts) {
     dropEmpty();
     const msg = document.createElement('div');
     msg.className = 'msg user';
     const bub = document.createElement('div');
     bub.className = 'bubble';
-    bub.textContent = text;
+    if (atts && atts.length) {
+      const row = document.createElement('div');
+      row.className = 'cv-umg';
+      atts.forEach(a => {
+        const f = document.createElement('figure');
+        const im = document.createElement('img'); im.src = a.url; im.alt = a.name;
+        const c = document.createElement('figcaption'); c.textContent = 'IMG_' + a.n;
+        f.appendChild(im); f.appendChild(c); row.appendChild(f);
+      });
+      bub.appendChild(row);
+      const t = document.createElement('div'); t.textContent = text; bub.appendChild(t);
+    } else {
+      bub.textContent = text;
+    }
     msg.appendChild(bub);
     list.appendChild(msg);
     scrollList();
@@ -2515,11 +2597,18 @@ async function streamFromHistory() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && main.classList.contains('open') && document.body.classList.contains('view-code')) closePanel(); });
   window.addEventListener('resize', moveInd);
 
+  // the code with every IMG_n placeholder replaced by the real picture (HTML only)
+  function realCode(ver) {
+    const code = ver.code || '';
+    if (ver.lang !== 'html' || !images.length) return code;
+    return code.replace(/\bIMG_(\d+)\b/gi, (m, d) => { const a = images[Number(d) - 1]; return a ? a.url : m; });
+  }
+
   // ---------- copy / download ----------
   function flash(btn, txt) { const o = btn.textContent; btn.textContent = txt; setTimeout(() => { btn.textContent = o; }, 1500); }
   $('cvCopy').addEventListener('click', () => {
     if (!cur) return;
-    const btn = $('cvCopy'), text = cur.code || '';
+    const btn = $('cvCopy'), text = realCode(cur);
     const fallback = () => {
       const ta = document.createElement('textarea');
       ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
@@ -2531,7 +2620,7 @@ async function streamFromHistory() {
     else fallback();
   });
   function download(ver) {
-    const blob = new Blob([ver.code || ''], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([realCode(ver)], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = LANG(ver.lang).file;
@@ -2546,7 +2635,7 @@ async function streamFromHistory() {
     const f = document.createElement('iframe');
     f.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups allow-pointer-lock');
     f.setAttribute('title', 'پیش‌نمایش');
-    f.srcdoc = ver.code || '';
+    f.srcdoc = realCode(ver);
     prevHost.appendChild(f);
     prevStatus.textContent = 'پیش‌نمایش زنده';
   }
@@ -2640,21 +2729,141 @@ async function streamFromHistory() {
     }
   });
 
+  // ---------- attaching pictures ----------
+  const MAX_DIM = 1280, MAX_URL = 650000, MAX_PER_MSG = 3, MAX_TOTAL = 8, MAX_FILE = 25 * 1024 * 1024;
+  const canSee = model => /^(gemini:|pplx:anthropic\/|pplx:openai\/|pplx:xai\/)/.test(String(model || ''));
+  const isImg = f => !!f && ((f.type && f.type.indexOf('image/') === 0) || /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(f.name || ''));
+
+  function setNote(text, ms) {
+    clearTimeout(noteTimer);
+    noteEl.textContent = text || '';
+    noteEl.classList.toggle('show', !!text);
+    if (text && ms) noteTimer = setTimeout(updateNote, ms);
+  }
+  // the standing hint that depends on the chosen model / language
+  function updateNote() {
+    clearTimeout(noteTimer);
+    let t = '';
+    if (pending.length || images.length) {
+      if (langSel.value !== 'html') t = 'عکس فقط داخل کد HTML می‌آید. در این زبان مدل عکس را فقط به‌عنوان مرجع می‌بیند.';
+      else if (!canSee(modelSel.value)) t = 'این مدل عکس را نمی‌بیند؛ فقط جای عکس را در کد می‌گذارد. برای اینکه از روی عکس طراحی کند، یک مدل Claude، GPT، Gemini یا Grok انتخاب کن.';
+    }
+    noteEl.textContent = t;
+    noteEl.classList.toggle('show', !!t);
+  }
+
+  function renderPending() {
+    imgsEl.innerHTML = '';
+    imgsEl.classList.toggle('show', pending.length > 0);
+    pending.forEach((a, i) => {
+      const c = document.createElement('div');
+      c.className = 'cv-chip' + (a.busy ? ' busy' : '');
+      if (a.url) { const im = document.createElement('img'); im.src = a.url; im.alt = a.name; c.appendChild(im); }
+      const tag = document.createElement('span'); tag.className = 'cv-tag'; tag.textContent = 'IMG_' + (images.length + i + 1); c.appendChild(tag);
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'cv-x'; x.textContent = '✕'; x.setAttribute('aria-label', 'حذف عکس');
+      x.addEventListener('click', () => { const k = pending.indexOf(a); if (k > -1) pending.splice(k, 1); renderPending(); updateNote(); });
+      c.appendChild(x);
+      imgsEl.appendChild(c);
+    });
+  }
+
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const im = new Image();
+      im.onload = () => resolve({ im, url });
+      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+      im.src = url;
+    });
+  }
+  // shrink the picture so it stays small enough to send to the model and to put in the page
+  async function compress(file) {
+    const { im, url } = await loadImage(file);
+    try {
+      const w0 = im.naturalWidth || im.width || 800, h0 = im.naturalHeight || im.height || 600;
+      let scale = Math.min(1, MAX_DIM / Math.max(w0, h0)), alpha = null, out = '', cw = 1, ch = 1;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        cw = Math.max(1, Math.round(w0 * scale)); ch = Math.max(1, Math.round(h0 * scale));
+        const cv = document.createElement('canvas');
+        cv.width = cw; cv.height = ch;
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(im, 0, 0, cw, ch);
+        if (alpha === null) {                                  // does the picture have transparent pixels?
+          alpha = false;
+          const px = ctx.getImageData(0, 0, cw, ch).data;
+          for (let i = 3; i < px.length; i += 16) { if (px[i] < 250) { alpha = true; break; } }
+        }
+        out = alpha ? cv.toDataURL('image/webp', 0.85 - attempt * 0.08) : cv.toDataURL('image/jpeg', 0.88 - attempt * 0.08);
+        if (out.length <= MAX_URL) break;
+        scale *= 0.75;
+      }
+      const m = out.match(/^data:([^;,]+);base64,(.*)$/);
+      if (!m) throw new Error('encode');
+      return { name: String(file.name || 'image').replace(/[^\w.\- ]+/g, '_').slice(0, 40) || 'image', mime: m[1], data: m[2], url: out, w: cw, h: ch };
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  async function addFiles(files) {
+    const all = Array.from(files || []);
+    const imgs = all.filter(isImg);
+    if (!imgs.length) { if (all.length) setNote('این فایل عکس نیست. فقط عکس می‌شود ضمیمه کرد.', 4500); return; }
+    let msg = all.length > imgs.length ? 'فایل‌هایی که عکس نبودند نادیده گرفته شدند. ' : '';
+    for (const f of imgs) {
+      if (pending.length >= MAX_PER_MSG) { msg += 'در هر پیام حداکثر ' + MAX_PER_MSG + ' عکس می‌شود فرستاد. '; break; }
+      if (images.length + pending.length >= MAX_TOTAL) { msg += 'در یک گفتگو حداکثر ' + MAX_TOTAL + ' عکس می‌شود. گفتگوی جدید شروع کن. '; break; }
+      if (f.size > MAX_FILE) { msg += 'یکی از عکس‌ها خیلی بزرگ بود (بیشتر از ۲۵ مگابایت). '; continue; }
+      const slot = { name: f.name || 'image', busy: true };
+      pending.push(slot); preparing++; renderPending();
+      try {
+        const done = await compress(f);
+        if (pending.indexOf(slot) > -1) Object.assign(slot, done, { busy: false });   // it may have been removed meanwhile
+      } catch (e) {
+        const k = pending.indexOf(slot); if (k > -1) pending.splice(k, 1);
+        msg += 'عکس «' + String(f.name || '').slice(0, 30) + '» خوانده نشد. ';
+      }
+      preparing--; renderPending();
+    }
+    updateNote();
+    if (msg.trim()) setNote(msg.trim(), 5500);
+  }
+  attachBtn.addEventListener('click', () => { if (!streaming) fileInp.click(); });
+  fileInp.addEventListener('change', () => { const fl = Array.from(fileInp.files || []); fileInp.value = ''; addFiles(fl); });
+  inp.addEventListener('paste', e => {
+    const fl = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(isImg);
+    if (fl.length) { e.preventDefault(); addFiles(fl); }
+  });
+  ['dragenter', 'dragover'].forEach(ev => chatCol.addEventListener(ev, e => {
+    if (e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') > -1) { e.preventDefault(); chatCol.classList.add('drag'); }
+  }));
+  chatCol.addEventListener('dragleave', e => { if (!chatCol.contains(e.relatedTarget)) chatCol.classList.remove('drag'); });
+  chatCol.addEventListener('drop', e => {
+    chatCol.classList.remove('drag');
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); }
+  });
+  langSel.addEventListener('change', updateNote);
+  modelSel.addEventListener('change', updateNote);
+
   // ---------- streaming ----------
   function setStreaming(on) {
     streaming = on;
     sendBtn.classList.toggle('stop-mode', on);
     sendBtn.innerHTML = on ? STOP_ICON : SEND_ICON;
     sendBtn.setAttribute('aria-label', on ? 'توقف' : 'ارسال');
-    langSel.disabled = on; modelSel.disabled = on; clearBtn.disabled = on;
+    langSel.disabled = on; modelSel.disabled = on; clearBtn.disabled = on; attachBtn.disabled = on;
   }
 
   async function send() {
     const text = inp.value.trim();
     if (!text || streaming) return;
+    if (preparing > 0) { setNote('چند لحظه صبر کن؛ عکس هنوز آماده می‌شود.', 3000); return; }
     inp.value = ''; autosize();
-    addUser(text);
-    hist.push({ role: 'user', content: text });
+    const atts = pending.filter(a => a.data);
+    pending = [];
+    atts.forEach(a => { a.n = images.length + 1; images.push(a); });
+    renderPending(); updateNote();
+    addUser(text, atts);
+    hist.push({ role: 'user', content: text, attach: atts });
     await stream();
   }
 
@@ -2710,7 +2919,7 @@ async function streamFromHistory() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages: apiMessages(), system: systemPrompt(lang), systemShort: systemShort(lang), search: false, think: false }),
+        body: JSON.stringify({ model, messages: apiMessages(model), system: systemPrompt(lang), systemShort: systemShort(lang), search: false, think: false }),
         signal: controller.signal
       });
       if (!res.ok) {
@@ -2759,6 +2968,7 @@ async function streamFromHistory() {
     if (streaming) return;
     closePanel();
     hist = []; versions = []; list.innerHTML = '';
+    images = []; pending = []; renderPending(); updateNote();
     renderEmpty();
   });
 
