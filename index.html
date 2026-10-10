@@ -1260,6 +1260,7 @@ body.cp-open #tbar { overflow-x: auto; }
     <optgroup label="Perplexity — Claude">
       <option value="pplx:anthropic/claude-sonnet-5-5">Claude Sonnet 5.5</option>
       <option value="pplx:anthropic/claude-opus-5-5">Claude Opus 5.5</option>
+      <option value="pplx:anthropic/claude-haiku-5-5">Claude Haiku 5.5</option>
       <option value="pplx:anthropic/claude-haiku-4-5">Claude Haiku 4.5</option>
       <option value="pplx:anthropic/claude-fable-5-1">Claude Fable 5.1</option>
     </optgroup>
@@ -1278,6 +1279,7 @@ body.cp-open #tbar { overflow-x: auto; }
     </optgroup>
   </select>
   <button id="asBtn" type="button">🤖 دستیارها</button>
+  <a href="/agent.html" class="as-btn" style="text-decoration:none;display:inline-flex;align-items:center">🧭 ایجنت</a>
   <button id="codeBtn" type="button">&lt;/&gt; Code</button>
   <button id="clearBtn" aria-label="پاک کردن گفتگو">🗑️<span class="hide-sm"> پاک</span></button>
 </header>
@@ -2218,6 +2220,7 @@ async function streamFromHistory() {
     ['Claude', [
       ['pplx:anthropic/claude-sonnet-5-5', 'Claude Sonnet 5.5'],
       ['pplx:anthropic/claude-opus-5-5', 'Claude Opus 5.5'],
+      ['pplx:anthropic/claude-haiku-5-5', 'Claude Haiku 5.5'],
       ['pplx:anthropic/claude-haiku-4-5', 'Claude Haiku 4.5'],
       ['pplx:anthropic/claude-fable-5-1', 'Claude Fable 5.1']
     ]],
@@ -2986,7 +2989,7 @@ async function streamFromHistory() {
     { id: 'deepseek', name: 'DeepSeek', models: [['deepseek-flash', 'DeepSeek V4.1'], ['deepseek-chat', 'DeepSeek V3']] },
     { id: 'google', name: 'Google Gemini', models: [['gemini:gemini-3.8-flash', 'Gemini 3.8 Flash'], ['gemini:gemini-3.7-flash', 'Gemini 3.7 Flash'], ['gemini:gemini-3.1-pro-preview', 'Gemini 3.1 Pro']] },
     { id: 'sonar', name: 'Perplexity Sonar', models: [['sonar:sonar', 'Sonar'], ['sonar:sonar-pro', 'Sonar Pro']] },
-    { id: 'anthropic', name: 'Anthropic Claude', models: [['pplx:anthropic/claude-sonnet-5-5', 'Claude Sonnet 5.5'], ['pplx:anthropic/claude-opus-5-5', 'Claude Opus 5.5'], ['pplx:anthropic/claude-haiku-4-5', 'Claude Haiku 4.5'], ['pplx:anthropic/claude-fable-5-1', 'Claude Fable 5.1']] },
+    { id: 'anthropic', name: 'Anthropic Claude', models: [['pplx:anthropic/claude-sonnet-5-5', 'Claude Sonnet 5.5'], ['pplx:anthropic/claude-opus-5-5', 'Claude Opus 5.5'], ['pplx:anthropic/claude-haiku-5-5', 'Claude Haiku 5.5'], ['pplx:anthropic/claude-haiku-4-5', 'Claude Haiku 4.5'], ['pplx:anthropic/claude-fable-5-1', 'Claude Fable 5.1']] },
     { id: 'openai', name: 'OpenAI', models: [['pplx:openai/gpt-6.1-sol', 'GPT-6.1 Sol'], ['pplx:openai/gpt-6-luna', 'GPT-6 Luna'], ['pplx:openai/gpt-5.6-terra', 'GPT-5.6 Terra'], ['pplx:openai/gpt-5.5', 'GPT-5.5']] },
     { id: 'xai', name: 'xAI', models: [['pplx:xai/grok-4.7', 'Grok 4.7']] },
     { id: 'glm', name: 'GLM', models: [['pplx:perplexity/glm-5.3', 'GLM 5.3'], ['pplx:perplexity/glm-5.3-flash', 'GLM 5.3 Flash']] }
