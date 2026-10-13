@@ -247,7 +247,7 @@ button:disabled{opacity:.45;cursor:default}
         if (m2 && !/\n```/.test(m2[0]) && m2[1].split('\n').length >= 3) full = null;
       }
     }
-    return { text: body.trim(), blocks, partial: !!open, full };
+    return { text: body.trim(), blocks, partial: !!open, full, partialBlock: open ? { phase: open.phase, search: open.s.join('\n'), replace: open.r.join('\n') } : null };
   }
 
   const leadWS = s => (/^[ \t]*/.exec(s) || [''])[0];
@@ -386,6 +386,19 @@ button:disabled{opacity:.45;cursor:default}
       }
       return null;
     },
+    // live streaming: change only the part of the text that differs; consecutive '+ai' changes form ONE undo step
+    live(v) {
+      if (cm) {
+        const old = cm.getValue(); if (old === v) return;
+        const n = Math.min(old.length, v.length);
+        let p = 0; while (p < n && old.charCodeAt(p) === v.charCodeAt(p)) p++;
+        let q = 0; while (q < n - p && old.charCodeAt(old.length - 1 - q) === v.charCodeAt(v.length - 1 - q)) q++;
+        cm.replaceRange(v.slice(p, v.length - q), cm.posFromIndex(p), cm.posFromIndex(old.length - q), '+ai');
+        const end = cm.posFromIndex(v.length - q);
+        cm.setCursor(end); cm.scrollIntoView(end, 70);
+      } else if (plain) { plain.value = v; plain.scrollTop = plain.scrollHeight; plain.dispatchEvent(new Event('input')); }
+    },
+    lock(on) { if (cm) cm.setOption('readOnly', on ? true : false); else if (plain) plain.readOnly = !!on; },
     mark(ranges) {                                          // [[firstLine, lastLine]] 0-based, briefly highlighted
       if (!cm || !ranges.length) return;
       const ms = ranges.map(r => cm.markText({ line: r[0], ch: 0 }, { line: r[1], ch: 1e6 }, { className: 'cm-ai-changed' }));
@@ -448,9 +461,8 @@ button:disabled{opacity:.45;cursor:default}
       p.trim() ? p.trim().split(/\n{2,}/).map(x => '<p>' + esc(x).replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\n/g, '<br>') + '</p>').join('') : '').join('');
   }
   const stripCode = t => String(t).replace(/```[\w+#-]*\n[\s\S]*?\n```/g, '').replace(/```[\s\S]*$/, '').trim();
-  function streamHtml(raw) {
+  function streamHtml(raw, emptyEd) {
     const pr = parseReply(raw);
-    const emptyEd = !ed.get().trim();
     if (emptyEd && !pr.blocks.length && !pr.partial && /```/.test(raw)) {          // the whole program goes to the editor, not into the chat
       return renderText(stripCode(pr.text)) + '<div><span class="wr">✏️ در حال نوشتن کد…</span></div>';
     }
@@ -511,7 +523,17 @@ button:disabled{opacity:.45;cursor:default}
     $('chips').querySelectorAll('button').forEach(x => x.disabled = on);
   }
 
-  async function callModel(userMsg, bubble) {
+  // what the editor should look like for the part of the answer that has been "typed" so far
+  function liveContent(base, shown) {
+    const pr = parseReply(shown);
+    const blocks = pr.blocks.slice();
+    if (pr.partialBlock && pr.partialBlock.phase === 'r') blocks.push({ search: pr.partialBlock.search, replace: pr.partialBlock.replace });
+    if (blocks.length) return applyBlocks(base, blocks).code;
+    if (!base.trim()) { const m = /```[\w+#-]*\n([\s\S]*?)(\n```|$)/.exec(shown); if (m) return m[1]; }
+    return null;                                     // nothing to show in the editor yet
+  }
+
+  async function callModel(userMsg, bubble, base) {
     const model = modelSel.value;
     const sys = systemPrompt();
     const body = { model, messages: compactHistory().concat([{ role: 'user', content: userMsg }]), system: sys, systemShort: sys, search: false };
@@ -521,28 +543,57 @@ button:disabled{opacity:.45;cursor:default}
     if (res.status === 401) throw new Error('AUTH');
     if (!res.ok) throw new Error((await res.text().catch(() => '')) || ('HTTP ' + res.status));
     const reader = res.body.getReader(); const dec = new TextDecoder();
-    let buf = '', raw = '', thinkShown = false, err = '';
-    let pending = false;
-    const paint = () => { pending = false; bubble.innerHTML = streamHtml(raw); scrollDown(); };
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const lines = buf.split('\n'); buf = lines.pop();
-      for (const ln of lines) {
-        if (!ln.startsWith('data: ')) continue;
-        const d = ln.slice(6).trim(); if (!d || d === '[DONE]') continue;
-        let e; try { e = JSON.parse(d); } catch (x) { continue; }
-        if (e.thinking && !raw) { if (!thinkShown) { bubble.innerHTML = '<span class="think">در حال فکر کردن…</span>'; thinkShown = true; } }
-        else if (e.delta) { raw += e.delta; if (!pending) { pending = true; requestAnimationFrame(paint); } }
-        else if (e.error) err = String(e.error);
+    const baseEmpty = !base.trim();
+    let buf = '', raw = '', shown = 0, netDone = false, aborted = false, err = '', thinkShown = false, lastDerive = 0, lastEd = null, finishNow = null;
+    const derive = () => {
+      const s = raw.slice(0, shown);
+      bubble.innerHTML = streamHtml(s, baseEmpty);
+      const c = liveContent(base, s);
+      if (c !== null && c !== lastEd) { ed.live(c); lastEd = c; }
+      scrollDown();
+    };
+    // typewriter pacing: the text is released a few characters per frame, faster when a lot is waiting
+    const pacer = new Promise(resolve => {
+      finishNow = () => { shown = raw.length; derive(); resolve(); };
+      const frame = ts => {
+        if (aborted) return resolve();
+        const backlog = raw.length - shown;
+        if (backlog > 0) {
+          const n = document.hidden ? backlog : (netDone ? Math.max(60, Math.ceil(backlog / 5)) : Math.max(4, Math.ceil(backlog / 14)));
+          shown = Math.min(raw.length, shown + n);
+        }
+        const finished = netDone && shown >= raw.length;
+        if (ts - lastDerive > 40 || finished) { lastDerive = ts; if (shown > 0) derive(); }
+        if (finished) return resolve();
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    });
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n'); buf = lines.pop();
+        for (const ln of lines) {
+          if (!ln.startsWith('data: ')) continue;
+          const d = ln.slice(6).trim(); if (!d || d === '[DONE]') continue;
+          let e; try { e = JSON.parse(d); } catch (x) { continue; }
+          if (e.thinking && !raw) { if (!thinkShown) { bubble.innerHTML = '<span class="think">در حال فکر کردن…</span>'; thinkShown = true; } }
+          else if (e.delta) raw += e.delta;
+          else if (e.error) err = String(e.error);
+        }
       }
-    }
-    if (err && !raw) throw new Error(err);
+    } catch (e) { aborted = true; throw e; }
+    netDone = true;
+    if (err && !raw) { aborted = true; throw new Error(err); }
+    setTimeout(() => { if (finishNow) finishNow(); }, 12000);       // safety net (a hidden tab does not run animation frames)
+    await pacer;
+    finishNow = null;
     return raw;
   }
 
-  // one full turn: ask -> parse -> apply (with one automatic retry for blocks that did not match)
+  // one full turn: ask -> stream live into the editor -> apply (with one automatic retry for blocks that did not match)
   async function ask(request, opts) {
     opts = opts || {};
     if (streaming) return;
@@ -550,33 +601,38 @@ button:disabled{opacity:.45;cursor:default}
     if (code.length > MAX_CODE) { addMsg('err', 'کد خیلی بزرگ است (' + nfa(code.length) + ' نویسه). بیشتر از ' + nfa(MAX_CODE) + ' نویسه را نمی‌توانم بفرستم.'); return; }
     if (!opts.hidden) addMsg('u', null).textContent = request;
     setStreaming(true);
-    const before = code;
+    ed.lock(true);
     let summary = '';
     try {
-      let attempt = 0, userMsg = buildUserMessage(request), curRequest = request, ctxHist = null;
-      const turnMsgs = [];
+      let attempt = 0, userMsg = buildUserMessage(request), curRequest = request;
       while (true) {
+        const roundBase = ed.get();
         const bubble = addMsg('a', '<span class="think">…</span>');
         let raw;
-        try { raw = await callModel(userMsg, bubble); }
+        try { raw = await callModel(userMsg, bubble, roundBase); }
         catch (e) {
-          if (e.name === 'AbortError') { bubble.innerHTML = renderText(streamPlain(bubble)) + '<div class="think">⏹ متوقف شد</div>'; throw e; }
+          if (e.name === 'AbortError') {
+            bubble.insertAdjacentHTML('beforeend', '<div class="think">⏹ متوقف شد</div>');
+            const nowCode = ed.get();
+            if (nowCode !== roundBase) bubble.appendChild(changeCard(roundBase, nowCode, lineDiff(roundBase, nowCode), 1, 1));   // the half-written change can be undone
+            persist();
+          }
           throw e;
         }
         const pr = parseReply(raw);
-        bubble.innerHTML = renderText(!pr.blocks.length && pr.full && !ed.get().trim() ? stripCode(pr.text) : pr.text) || '';
+        const fullIntoEmpty = !pr.blocks.length && pr.full && !roundBase.trim();
+        bubble.innerHTML = renderText(fullIntoEmpty ? stripCode(pr.text) : pr.text) || '';
         if (!raw.trim()) { bubble.innerHTML = '<span class="think">مدل پاسخی نداد. دوباره امتحان کن یا مدل دیگری انتخاب کن.</span>'; break; }
         summary = pr.text;
         if (pr.blocks.length) {
-          const cur = ed.get();
-          const r = applyBlocks(cur, pr.blocks);
+          const r = applyBlocks(roundBase, pr.blocks);
+          ed.live(r.code);                                  // final state (normally identical to what was typed live)
           if (r.applied) {
-            ed.replace(r.code);
-            const ops = lineDiff(cur, r.code);
+            const ops = lineDiff(roundBase, r.code);
             ed.mark(rangesOf(ops));
-            bubble.appendChild(changeCard(before === cur ? before : cur, r.code, ops, r.applied, pr.blocks.length));
-            persist(); updateMeta();
+            bubble.appendChild(changeCard(roundBase, r.code, ops, r.applied, pr.blocks.length));
           }
+          persist(); updateMeta();
           if (r.failed.length) {
             if (attempt === 0) {
               attempt++;
@@ -591,8 +647,9 @@ button:disabled{opacity:.45;cursor:default}
             bubble.appendChild(failCard(r.failed, request));
           }
         } else if (pr.full) {
-          if (!ed.get().trim()) {
-            ed.replace(pr.full); persist(); updateMeta();
+          if (!roundBase.trim()) {
+            ed.live(pr.full); persist(); updateMeta();
+            ed.mark(rangesOf(lineDiff('', pr.full)));
             bubble.appendChild(changeCard('', pr.full, lineDiff('', pr.full), 1, 1));
           } else {
             bubble.appendChild(fullCard(pr.full));
@@ -600,16 +657,15 @@ button:disabled{opacity:.45;cursor:default}
         }
         break;
       }
-      hist.push({ role: 'user', content: curRequest === request ? request : request });
+      hist.push({ role: 'user', content: request });
       hist.push({ role: 'assistant', content: (summary || '(بدون توضیح)').slice(0, 1500) });
       hist = hist.slice(-16);
     } catch (e) {
       if (e.name === 'AbortError') { /* stopped by the user */ }
-      else if (e.message === 'AUTH') addMsg('err', 'نشست تمام شده یا هنوز وارد نشده‌ای. <a href="/">به صفحهٔ اصلی برو و کد دسترسی را وارد کن</a> و بعد دوباره امتحان کن.').innerHTML = 'هنوز وارد نشده‌ای یا نشست تمام شده. <a href="/">به صفحهٔ اصلی برو، کد دسترسی را وارد کن</a> و دوباره امتحان کن.';
+      else if (e.message === 'AUTH') addMsg('err', null).innerHTML = 'هنوز وارد نشده‌ای یا نشست تمام شده. <a href="/">به صفحهٔ اصلی برو، کد دسترسی را وارد کن</a> و دوباره امتحان کن.';
       else addMsg('err', null).textContent = 'خطا: ' + e.message;
-    } finally { setStreaming(false); controller = null; $('inp').focus(); }
+    } finally { ed.lock(false); setStreaming(false); controller = null; $('inp').focus(); }
   }
-  const streamPlain = bubble => bubble.textContent || '';
   function rangesOf(ops) {
     const r = []; let cur = null;
     ops.forEach(o => { if (o.t === 'add') { if (cur && o.n === cur[1] + 1) cur[1] = o.n; else { cur = [o.n, o.n]; r.push(cur); } } });
