@@ -628,7 +628,7 @@ body.mode-audio .audio-only { display: inline-block; }
   header { padding: 8px 10px; gap: 6px; }
   header h1, header img, #mLb { display: none; }
   #mSel { flex: 1; min-width: 0; max-width: none; padding: 6px 6px; }
-  #asBtn, #codeBtn, #clearBtn { padding: 6px 8px; font-size: .74rem; }
+  #asBtn, #codeBtn, #codingBtn, #clearBtn { padding: 6px 8px; font-size: .74rem; }
   #clearBtn .hide-sm { display: none; }
 }
 
@@ -825,7 +825,7 @@ body.mode-image #asBar, body.mode-audio #asBar { display: none; }
 .as-grid.still .as-card { animation: none; opacity: 1; }
 
 /* ===== CODE VIEW ===== */
-#codeBtn {
+#codeBtn, #codingBtn {
   background: var(--green-pale);
   border: 1px solid var(--green-border);
   color: var(--green-main);
@@ -838,7 +838,8 @@ body.mode-image #asBar, body.mode-audio #asBar { display: none; }
   transition: all 0.15s;
   white-space: nowrap;
 }
-#codeBtn:hover { background: var(--green-main); border-color: var(--green-main); color: var(--white); }
+#codingBtn { text-decoration: none; display: inline-flex; align-items: center; }
+#codeBtn:hover, #codingBtn:hover { background: var(--green-main); border-color: var(--green-main); color: var(--white); }
 
 #codeView { display: none; flex: 1; min-height: 0; flex-direction: column; background: #f8fafc; }
 body.view-code > header,
@@ -1159,7 +1160,7 @@ body.view-code.cp-open, body.view-as.cp-open { padding-right: 0; }
 body.cp-open header { padding: 8px 10px; gap: 6px; }
 body.cp-open header h1, body.cp-open header img, body.cp-open #mLb { display: none; }
 body.cp-open #mSel { flex: 1; min-width: 0; max-width: none; padding: 6px 6px; }
-body.cp-open #asBtn, body.cp-open #codeBtn, body.cp-open #clearBtn { padding: 6px 8px; font-size: .74rem; }
+body.cp-open #asBtn, body.cp-open #codeBtn, body.cp-open #codingBtn, body.cp-open #clearBtn { padding: 6px 8px; font-size: .74rem; }
 body.cp-open #clearBtn .hide-sm { display: none; }
 body.cp-open #tbar { overflow-x: auto; }
 @media (max-width: 720px) {
@@ -1279,7 +1280,7 @@ body.cp-open #tbar { overflow-x: auto; }
     </optgroup>
   </select>
   <button id="asBtn" type="button">🤖 دستیارها</button>
-  <a href="/agent.html" class="as-btn" style="text-decoration:none;display:inline-flex;align-items:center">🧭 ایجنت</a>
+  <a id="codingBtn" href="/coding.html">💻 Coding</a>
   <button id="codeBtn" type="button">&lt;/&gt; Code</button>
   <button id="clearBtn" aria-label="پاک کردن گفتگو">🗑️<span class="hide-sm"> پاک</span></button>
 </header>
