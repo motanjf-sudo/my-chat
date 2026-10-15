@@ -13,7 +13,7 @@ var MAX_INSTR = 4000;
 // models a custom assistant may use (company -> model); anything else is rejected
 var ALLOWED = [
   'deepseek-flash', 'deepseek-chat',
-  'gemini:gemini-3.8-flash', 'gemini:gemini-3.7-flash', 'gemini:gemini-3.1-pro-preview',
+  'gemini:gemini-4-argon', 'gemini:gemini-3.8-flash', 'gemini:gemini-3.7-flash', 'gemini:gemini-3.1-pro-preview',
   'sonar:sonar', 'sonar:sonar-pro',
   'pplx:anthropic/claude-sonnet-5-5', 'pplx:anthropic/claude-opus-5-5', 'pplx:anthropic/claude-haiku-5-5', 'pplx:anthropic/claude-haiku-4-5', 'pplx:anthropic/claude-fable-5-1',
   'pplx:openai/gpt-6.1-sol', 'pplx:openai/gpt-6-luna', 'pplx:openai/gpt-5.6-terra', 'pplx:openai/gpt-5.5',
